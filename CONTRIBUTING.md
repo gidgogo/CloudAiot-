@@ -29,7 +29,7 @@ git pull --ff-only
 git switch -c feat/12-gesture-recognition
 # 수정 후
 python -m pytest
-git add src/cloudaiot/vision/gesture.py
+git add server/vision/gesture.py
 git commit -m "by 본인이름 - feat: 손동작 분류 구현"
 git push -u origin feat/12-gesture-recognition
 ```
@@ -38,15 +38,14 @@ git push -u origin feat/12-gesture-recognition
 관련 Issue가 있으면 PR 본문에 `Closes #12`처럼 연결합니다.
 
 `main`에는 PR과 CI를 거쳐 반영합니다. 강제 푸시와 브랜치 삭제는 금지합니다.
-초기에는 소유자만 등록되어 있으므로 승인 리뷰 수는 강제하지 않습니다.
-팀원이 합류하면 관리자와 상의해 승인 리뷰 1개를 필수로 설정합니다.
+현재 승인 리뷰 수는 강제하지 않으며, 팀에서 합의하면 관리자와 상의해 승인 리뷰 1개를 필수로 설정합니다.
 기여 이력을 보존하려면 GitHub의 Create a merge commit 방식으로 병합합니다.
 
 ## 개발 규칙
 
 - 기준 환경은 Python 3.11이며 설치·실행 방법은 README를 따릅니다.
-- 모듈 간 전달 형식은 `src/cloudaiot/types.py`를 기준으로 맞춥니다. 형식 변경은 관련 담당자와 먼저 합의합니다.
-- 공통 의존성은 `pyproject.toml`의 dependencies, 영상 의존성은 vision, 테스트 도구는 dev에 추가합니다.
+- 모듈 간 전달 형식은 `shared/types.py`를 기준으로 맞춥니다. 형식 변경은 관련 담당자와 먼저 합의합니다.
+- 공통 의존성은 `pyproject.toml`의 dependencies에 둡니다. 라즈베리파이는 edge, API는 server, AI 영상 패키지는 vision, 테스트 도구는 dev 그룹에 추가합니다.
 - 버그 수정 시 재현 테스트를 추가합니다. 실제 카메라/GPIO 테스트 결과는 장비와 조건을 PR에 기록합니다.
 - 개인 설정, `.env`, 인증키, 촬영 영상은 커밋하지 않습니다. 공유할 설정은 값이 없는 예제 파일로 제공합니다.
 - 요구사항 변경은 문서와 Issue에 이유를 남깁니다. 확정되지 않은 SAD 초안의 내용을 구현 완료로 표시하지 않습니다.
@@ -55,3 +54,10 @@ git push -u origin feat/12-gesture-recognition
 
 설계 문서는 `docs/`에서 함께 관리하고, 발표 자료 등 바이너리 문서는 한 번에 한 사람이 수정합니다.
 각 단계의 담당 역할과 결과는 Issue·PR에 남깁니다. 팀원의 GitHub 아이디와 역할은 합의 후 추가합니다.
+
+## 실행 역할별 작업 위치
+
+라즈베리파이는 `edge/`, AI·백엔드는 `server/`, ESP32는 `firmware/`, 보호자 화면은 `web/`에서 작업합니다.
+공통 메시지 형식은 `shared/`에 둡니다. edge와 server는 서로를 직접 import하지 않습니다.
+여러 모듈을 한 컴퓨터에서 묶어 확인하는 도구만 `scripts/`에 둡니다.
+기존 작업 브랜치의 `cloudaiot.*` import와 `config/config.yaml` 개인 값은 README의 이전 안내에 따라 바꿉니다.

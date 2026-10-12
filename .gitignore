@@ -25,3 +25,10 @@ logs/
 *.h264
 captures/
 config/config.yaml
+
+edge/config.yaml
+server/config.yaml
+web/node_modules/
+web/dist/
+firmware/.pio/
+firmware/include/secrets.h

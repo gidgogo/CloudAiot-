@@ -1,24 +1,26 @@
-"""디바이스 메인 루프: 카메라 -> 시선/손동작 -> 의도 판단 -> 기기 제어/알림."""
+"""로컬 통합 데모. edge/server 모듈을 한 컴퓨터에서 함께 확인하는 개발용 도구."""
 
 import argparse
 import logging
 
-from cloudaiot.alert.client import AlertClient
-from cloudaiot.config import load_config
-from cloudaiot.devices.controller import DeviceController, build_devices
-from cloudaiot.intent.fusion import IntentFusion
-from cloudaiot.types import Action
+from server.notifications.client import AlertClient
+from edge.config import load_config as load_edge_config
+from server.config import load_config as load_server_config
+from edge.devices.controller import DeviceController, build_devices
+from server.intent.fusion import IntentFusion
+from shared.types import Action
 
 log = logging.getLogger("cloudaiot")
 
 
 def run(mock: bool = False) -> None:
-    from cloudaiot.vision.camera import Camera
-    from cloudaiot.vision.gaze import GazeEstimator
-    from cloudaiot.vision.gesture import GestureRecognizer
+    from edge.camera import Camera
+    from server.vision.gaze import GazeEstimator
+    from server.vision.gesture import GestureRecognizer
 
-    cfg = load_config()
-    camera = Camera(**cfg["camera"])
+    edge_cfg = load_edge_config()
+    cfg = load_server_config()
+    camera = Camera(**edge_cfg["camera"])
     gaze = GazeEstimator(cfg["gaze"]["targets"], cfg["gaze"]["dwell_sec"])
     gesture = GestureRecognizer(cfg["gesture"]["min_confidence"])
     fusion = IntentFusion(
@@ -26,7 +28,7 @@ def run(mock: bool = False) -> None:
         min_confidence=cfg["gesture"]["min_confidence"],
         **cfg["intent"],
     )
-    controller = DeviceController(build_devices(cfg["devices"], mock=mock))
+    controller = DeviceController(build_devices(edge_cfg["devices"], mock=mock))
     alert = AlertClient(cfg["alert"]["server_url"], cfg["alert"]["timeout_sec"])
 
     camera.open()

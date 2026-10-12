@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from cloudaiot.types import GestureResult
+from shared.types import GestureResult
 
 SUPPORTED_GESTURES = ("open_palm", "fist", "v_sign")
 

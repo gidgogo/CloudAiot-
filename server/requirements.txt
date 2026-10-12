@@ -1,0 +1,3 @@
+# 저장소 루트에서: python -m pip install -r server/requirements.txt
+# API와 의도 판단용. 영상 분석 개발 시 추가로 pip install -e ".[server,vision]"
+-e .[server]

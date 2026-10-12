@@ -2,9 +2,9 @@
 
 from typing import Dict
 
-from cloudaiot.devices.base import Device, MockDevice
-from cloudaiot.devices.gpio_relay import GpioRelayDevice
-from cloudaiot.types import Action, Intent
+from edge.devices.base import Device, MockDevice
+from edge.devices.gpio_relay import GpioRelayDevice
+from shared.types import Action, Intent
 
 
 def build_devices(config: Dict[str, dict], mock: bool = False) -> Dict[str, Device]:
