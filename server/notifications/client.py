@@ -4,7 +4,7 @@ import logging
 
 import requests
 
-from cloudaiot.types import Intent
+from shared.types import Intent
 
 log = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@
 import time
 from typing import Dict, Optional, Tuple
 
-from cloudaiot.types import Action, GazeResult, GestureResult, Intent
+from shared.types import Action, GazeResult, GestureResult, Intent
 
 
 class IntentFusion:

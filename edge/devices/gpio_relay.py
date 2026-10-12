@@ -1,6 +1,6 @@
 """라즈베리파이 GPIO 릴레이로 조명·선풍기를 켜고 끈다."""
 
-from cloudaiot.devices.base import Device
+from edge.devices.base import Device
 
 
 class GpioRelayDevice(Device):

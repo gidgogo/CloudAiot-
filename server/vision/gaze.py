@@ -7,7 +7,7 @@ from typing import Dict
 
 import numpy as np
 
-from cloudaiot.types import GazeResult
+from shared.types import GazeResult
 
 
 class GazeEstimator:

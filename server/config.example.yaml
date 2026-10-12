@@ -1,0 +1,22 @@
+gaze:
+  dwell_sec: 0.8
+  # 화면 좌표(0~1) 기준 임시 기기 영역. 실제 공간 보정은 구현 예정.
+  targets:
+    light: {x1: 0.0, y1: 0.0, x2: 0.5, y2: 1.0}
+    fan: {x1: 0.5, y1: 0.0, x2: 1.0, y2: 1.0}
+
+gesture:
+  min_confidence: 0.7
+  mapping:
+    open_palm: "on"
+    fist: "off"
+    v_sign: "call_caregiver"
+
+intent:
+  fusion_window_sec: 1.5
+  cooldown_sec: 2.0
+
+# 기존 로컬 데모에서 이벤트를 보내는 API. 보호자 푸시는 아직 미구현.
+alert:
+  server_url: "http://localhost:8000"
+  timeout_sec: 1.0

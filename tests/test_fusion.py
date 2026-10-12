@@ -1,7 +1,7 @@
 import pytest
 
-from cloudaiot.intent.fusion import IntentFusion
-from cloudaiot.types import Action, GazeResult, GestureResult
+from server.intent.fusion import IntentFusion
+from shared.types import Action, GazeResult, GestureResult
 
 MAPPING = {"open_palm": "on", "fist": "off", "v_sign": "call_caregiver"}
 
@@ -51,7 +51,7 @@ def test_configured_confidence_threshold():
 
 @pytest.mark.parametrize("gaze_at, gesture_at", [(90, 90), (90, 100), (100, 90), (101, 101)])
 def test_stale_or_future_inputs_are_cancelled(monkeypatch, gaze_at, gesture_at):
-    monkeypatch.setattr("cloudaiot.intent.fusion.time.time", lambda: 100.0)
+    monkeypatch.setattr("server.intent.fusion.time.time", lambda: 100.0)
     f = IntentFusion(MAPPING)
     assert f.decide(GazeResult("light", 0.9, gaze_at), GestureResult("open_palm", 0.9, gesture_at)) is None
 
@@ -65,7 +65,7 @@ def test_help_with_both_inputs():
 
 def test_cooldown_expires_using_monotonic_clock(monkeypatch):
     clock = [10.0]
-    monkeypatch.setattr("cloudaiot.intent.fusion.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("server.intent.fusion.time.monotonic", lambda: clock[0])
     f = IntentFusion(MAPPING, cooldown_sec=2.0)
     assert f.decide(GazeResult("fan", 0.9), GestureResult("fist", 0.9)) is not None
     clock[0] = 11.0
