@@ -1,0 +1,11 @@
+# 라즈베리파이 디바이스 측
+opencv-python>=4.8
+mediapipe>=0.10
+numpy>=1.24
+PyYAML>=6.0
+requests>=2.31
+
+# 보호자 알림 서버
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.5

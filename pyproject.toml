@@ -1,0 +1,16 @@
+[project]
+name = "cloudaiot"
+version = "0.1.0"
+description = "AI 시선·손동작 비언어 의사소통 시스템"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
