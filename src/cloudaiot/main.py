@@ -47,7 +47,11 @@ def run(mock: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mock", action="store_true", help="실제 GPIO 대신 가짜 기기 사용")
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use mock GPIO devices (a camera is still required)",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     run(mock=args.mock)
