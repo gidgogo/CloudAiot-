@@ -8,19 +8,24 @@ from cloudaiot.config import load_config
 from cloudaiot.devices.controller import DeviceController, build_devices
 from cloudaiot.intent.fusion import IntentFusion
 from cloudaiot.types import Action
-from cloudaiot.vision.camera import Camera
-from cloudaiot.vision.gaze import GazeEstimator
-from cloudaiot.vision.gesture import GestureRecognizer
 
 log = logging.getLogger("cloudaiot")
 
 
 def run(mock: bool = False) -> None:
+    from cloudaiot.vision.camera import Camera
+    from cloudaiot.vision.gaze import GazeEstimator
+    from cloudaiot.vision.gesture import GestureRecognizer
+
     cfg = load_config()
     camera = Camera(**cfg["camera"])
     gaze = GazeEstimator(cfg["gaze"]["targets"], cfg["gaze"]["dwell_sec"])
     gesture = GestureRecognizer(cfg["gesture"]["min_confidence"])
-    fusion = IntentFusion(cfg["gesture"]["mapping"], **cfg["intent"])
+    fusion = IntentFusion(
+        cfg["gesture"]["mapping"],
+        min_confidence=cfg["gesture"]["min_confidence"],
+        **cfg["intent"],
+    )
     controller = DeviceController(build_devices(cfg["devices"], mock=mock))
     alert = AlertClient(cfg["alert"]["server_url"], cfg["alert"]["timeout_sec"])
 
