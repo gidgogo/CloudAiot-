@@ -10,28 +10,44 @@ from cloudaiot.types import Action, GazeResult, GestureResult, Intent
 
 
 class IntentFusion:
-    def __init__(self, mapping: Dict[str, str], fusion_window_sec: float = 1.5, cooldown_sec: float = 2.0):
+    def __init__(
+        self,
+        mapping: Dict[str, str],
+        fusion_window_sec: float = 1.5,
+        cooldown_sec: float = 2.0,
+        min_confidence: float = 0.7,
+    ):
         self.mapping = {name: Action(value) for name, value in mapping.items()}
         self.fusion_window_sec = fusion_window_sec
         self.cooldown_sec = cooldown_sec
+        self.min_confidence = min_confidence
         self._last: Optional[Tuple[Intent, float]] = None
 
     def decide(self, gaze: GazeResult, gesture: GestureResult) -> Optional[Intent]:
+        now = time.time()
         if gesture.name is None or gesture.name not in self.mapping:
             return None
+        # FR-03/FR-05: 도움 요청도 시선과 손동작이 함께 확인되어야 한다.
+        if gaze.target is None:
+            return None
+        if not (
+            self.min_confidence <= gaze.confidence <= 1.0
+            and self.min_confidence <= gesture.confidence <= 1.0
+        ):
+            return None
+        # 서로 가까운 시각에 얻은 입력이어도 오래된 결과를 재실행하지 않는다.
+        if not (
+            0 <= now - gaze.timestamp <= self.fusion_window_sec
+            and 0 <= now - gesture.timestamp <= self.fusion_window_sec
+        ):
+            return None
+
         action = self.mapping[gesture.name]
-
-        # 보호자 호출 외의 명령은 시선 대상이 반드시 있어야 한다
-        if action is not Action.CALL_CAREGIVER and gaze.target is None:
-            return None
-        if abs(gaze.timestamp - gesture.timestamp) > self.fusion_window_sec and gaze.target is not None:
-            return None
-
         intent = Intent(target=gaze.target, action=action)
-        now = time.time()
+        cooldown_now = time.monotonic()
         if self._last is not None:
             last, at = self._last
-            if (last.target, last.action) == (intent.target, intent.action) and now - at < self.cooldown_sec:
+            if (last.target, last.action) == (intent.target, intent.action) and cooldown_now - at < self.cooldown_sec:
                 return None
-        self._last = (intent, now)
+        self._last = (intent, cooldown_now)
         return intent

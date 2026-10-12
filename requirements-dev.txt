@@ -1,2 +1,2 @@
--r requirements.txt
-pytest>=8.0
+# 카메라/GPIO 없이 서버와 의도 판단을 개발하고 테스트한다.
+-e .[dev]
