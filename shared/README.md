@@ -1,4 +1,4 @@
-# 공통 형식과 설정 로더
+# 공통 데이터 형식
 
 `types.py`의 Action, GazeResult, GestureResult, Intent를 Python 구성요소에서 공통으로 사용합니다.
 `config.py`는 명시한 경로의 YAML 파일을 읽습니다. 각 컴포넌트의 기본 설정 경로는 해당 폴더에서 관리합니다.
