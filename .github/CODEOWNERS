@@ -1,0 +1,7 @@
+# 팀원의 GitHub 계정이 확정되면 각 경로의 검토 담당자를 지정한다.
+# /edge/ @edge-owner
+# /server/vision/ @ai-vision-owner
+# /server/intent/ @ai-intent-owner
+# /server/api/ /server/services/ /server/db/ /server/security/ /web/ @web-app-owner
+# /server/iot/ /firmware/ /shared/ /deploy/ @integration-owner
+

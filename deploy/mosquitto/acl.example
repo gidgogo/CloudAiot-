@@ -1,0 +1,5 @@
+user device-example
+topic read aiot/+/device-example/cmd
+topic write aiot/+/device-example/ack
+topic write aiot/+/device-example/state
+

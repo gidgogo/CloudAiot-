@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"GestureResult","type":"object","properties":{"gesture":{"type":"string"},"detected_at":{"type":"number"}},"required":["gesture","detected_at"]}
+

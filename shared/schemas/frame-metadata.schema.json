@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"FrameMetadata","type":"object","properties":{"frame_id":{"type":"string"},"captured_at":{"type":"number"}},"required":["frame_id","captured_at"]}
+
