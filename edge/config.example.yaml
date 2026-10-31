@@ -11,3 +11,11 @@ edge:
   camera_id: camera-01
   server_url: ws://localhost:8000
   edge_token: CHANGE_ME
+
+devices:
+  light:
+    type: gpio_relay
+    pin: 17
+  fan:
+    type: gpio_relay
+    pin: 27

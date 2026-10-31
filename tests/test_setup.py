@@ -20,7 +20,7 @@ def test_component_example_config_works_outside_repository(monkeypatch, tmp_path
 def test_component_configs_are_separate():
     edge = edge_config.load_config(edge_config.EXAMPLE_PATH)
     server = server_config.load_config(server_config.EXAMPLE_PATH)
-    assert set(edge) == {"camera", "devices"}
+    assert set(edge) == {"camera", "edge", "devices"}
     assert set(server) == {"gaze", "gesture", "intent", "alert"}
 
 
