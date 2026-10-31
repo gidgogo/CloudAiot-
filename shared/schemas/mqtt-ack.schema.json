@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"MqttAck","type":"object","properties":{"command_id":{"type":"string"},"result":{"enum":["OK","ERROR"]},"state":{"enum":["ON","OFF","UNKNOWN"]}},"required":["command_id","result"]}
+

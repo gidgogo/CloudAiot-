@@ -1,0 +1,2 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"IntentResult","type":"object","properties":{"target_device_id":{"type":"string"},"action":{"enum":["ON","OFF","HELP"]}},"required":["action"]}
+

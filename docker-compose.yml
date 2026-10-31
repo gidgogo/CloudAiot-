@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports: ["${API_PORT:-8000}:8000"]
+    depends_on: [postgres, mosquitto]
+
+  nginx:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports: ["${WEB_PORT:-8080}:80"]
+    depends_on: [api]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cloudaiot}
+      POSTGRES_USER: ${POSTGRES_USER:-cloudaiot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["${MQTT_PORT:-1883}:1883"]
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+
+volumes:
+  postgres-data:
+  mosquitto-data:
+
