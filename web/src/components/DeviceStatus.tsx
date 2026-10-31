@@ -1,4 +1,2 @@
-export function DeviceStatus() {
-  return <span>기기 상태</span>;
-}
-
+import type { DeviceState } from "../types";
+export function DeviceStatus({state}:{state:DeviceState}) { return <output>{state}</output>; }
