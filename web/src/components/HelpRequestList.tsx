@@ -1,4 +1,2 @@
-export function HelpRequestList() {
-  return <section>도움 요청 목록</section>;
-}
-
+import type { HelpRequest } from "../types";
+export function HelpRequestList({requests}:{requests:HelpRequest[]}) { return <ul>{requests.map(request=><li key={request.request_id}>{request.status} · {new Date(request.created_at_ms).toLocaleString()}</li>)}</ul>; }

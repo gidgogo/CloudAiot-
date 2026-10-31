@@ -1,4 +1,2 @@
-export function DeviceCard() {
-  return <article>기기 정보</article>;
-}
-
+import type { Device } from "../types";
+export function DeviceCard({device}:{device:Device}) { return <article><strong>{device.name}</strong><span>{device.state ?? "UNKNOWN"}</span></article>; }

@@ -1,2 +1,8 @@
-"""기기 상태와 도움 요청 실시간 전송을 담당한다."""
-
+from fastapi import APIRouter,WebSocket
+router=APIRouter()
+@router.websocket("/ws/v1/events")
+async def event_socket(websocket:WebSocket):
+ await websocket.accept()
+ try:
+  while True: await websocket.receive_text()
+ except Exception: await websocket.close()

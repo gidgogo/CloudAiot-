@@ -2,9 +2,16 @@ camera:
   device_index: 0
   width: 640
   height: 480
-  fps: 15
+  fps: 10
+  jpeg_quality: 95
+  mirrored: false
+  rotation_deg: 0
+edge:
+  edge_id: raspberrypi-01
+  camera_id: camera-01
+  server_url: ws://localhost:8000
+  edge_token: CHANGE_ME
 
-# 로컬 데모용 Mock/GPIO 설정. ESP32 제어는 firmware/에서 별도 구현 예정.
 devices:
   light:
     type: gpio_relay
