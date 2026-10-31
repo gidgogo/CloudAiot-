@@ -1,2 +1,4 @@
-"""서버와 의존 서비스 상태 확인 API를 정의한다."""
-
+from fastapi import APIRouter
+router=APIRouter(tags=["health"])
+@router.get("/health")
+def health(): return {"success":True,"data":{"status":"ok"}}
