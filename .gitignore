@@ -23,6 +23,8 @@ logs/
 *.mp4
 *.avi
 *.h264
+*.db
+
 captures/
 config/config.yaml
 
@@ -35,3 +37,5 @@ firmware/include/secrets.h
 deploy/mosquitto/passwd
 postgres-data/
 mosquitto-data/
+
+
