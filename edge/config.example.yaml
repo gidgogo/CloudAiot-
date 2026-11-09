@@ -1,4 +1,9 @@
 camera:
+  # opencv: USB 웹캠·노트북 카메라 | picamera2: Pi 카메라 모듈(CSI) | synthetic: 하드웨어 없이 테스트 패턴
+  # file: file_path의 동영상·이미지 폴더·이미지를 반복 재생 (협업용 더미 송출)
+  source: opencv
+  file_path: null
+  file_loop: true
   device_index: 0
   width: 640
   height: 480
@@ -10,7 +15,8 @@ edge:
   edge_id: raspberrypi-01
   camera_id: camera-01
   server_url: ws://localhost:8000
-  edge_token: CHANGE_ME
+  edge_token: CHANGE_ME  # 환경변수 EDGE_TOKEN 권장
+  ack_timeout_sec: 2.0
 
 devices:
   light:
