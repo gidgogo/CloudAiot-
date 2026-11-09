@@ -77,6 +77,11 @@ class SelectionStateMachine:
         self._reset()
         self.last_cancel_reason = reason
 
+    def clear(self) -> None:
+        """Drop the selection without a cancel reason (for example after HELP or when the device is removed)."""
+        self._reset()
+        self.last_cancel_reason = None
+
     def _reset(self) -> None:
         self.state = IntentState.IDLE
         self.target_device_id = None

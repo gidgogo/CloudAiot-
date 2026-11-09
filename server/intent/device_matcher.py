@@ -64,13 +64,22 @@ def match_device(angle_deg: float, regions: list[DeviceRegion]) -> str | None:
     return match_device_detail(angle_deg, regions).device_id
 
 
+def pointing_direction_deg(
+    vector: PointingVector,
+    width: int = DEFAULT_FRAME_WIDTH,
+    height: int = DEFAULT_FRAME_HEIGHT,
+) -> float:
+    """Pointing angle in (-180, 180] using the real frame size (spec 4.3) so the aspect ratio does not skew it."""
+    if width <= 0 or height <= 0:
+        raise ValueError("frame width and height must be positive")
+    return normalize_angle_deg(pointing_angle_deg(vector, width, height))
+
+
 def match_pointing(
     vector: PointingVector,
     regions: list[DeviceRegion],
     width: int = DEFAULT_FRAME_WIDTH,
     height: int = DEFAULT_FRAME_HEIGHT,
 ) -> DeviceMatch:
-    """Match a normalized pointing vector using the real frame size (spec 4.3) so the aspect ratio does not skew the angle."""
-    if width <= 0 or height <= 0:
-        raise ValueError("frame width and height must be positive")
-    return match_device_detail(pointing_angle_deg(vector, width, height), regions)
+    """Match a normalized pointing vector to a device region."""
+    return match_device_detail(pointing_direction_deg(vector, width, height), regions)

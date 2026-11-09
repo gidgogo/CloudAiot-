@@ -87,6 +87,15 @@ def test_confirm_returns_to_idle_so_selection_cannot_confirm_twice(selected):
     assert selected.active_target(SELECTED_AT + 100) is None
 
 
+def test_clear_returns_to_idle_without_reason(selected):
+    selected.cancel(DIRECTION_CHANGED)
+    selected.select("light-01", SELECTED_AT + 5_000, angle_deg=90.0)
+    selected.clear()
+    assert_idle(selected)
+    assert selected.selected_angle_deg is None
+    assert selected.last_cancel_reason is None
+
+
 def test_cancel_returns_to_idle_and_keeps_reason(selected):
     selected.cancel(DIRECTION_CHANGED)
     assert_idle(selected)

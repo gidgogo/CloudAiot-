@@ -15,6 +15,7 @@ from server.intent.device_matcher import (
     match_device_detail,
     match_pointing,
     normalize_angle_deg,
+    pointing_direction_deg,
 )
 from shared.types import PointingVector
 
@@ -193,3 +194,16 @@ def test_match_pointing_skips_disabled_devices():
 def test_match_pointing_rejects_invalid_frame_size(width, height):
     with pytest.raises(ValueError):
         match_pointing(vector(0.3, 0.0), [FAN], width, height)
+
+
+@pytest.mark.parametrize(
+    "pointing, expected",
+    [(vector(0.3, 0.0), 0.0), (vector(0.0, 0.3), 90.0), (vector(0.0, -0.3), -90.0), (vector(-0.3, 0.0), 180.0)],
+)
+def test_pointing_direction_is_normalized(pointing, expected):
+    assert pointing_direction_deg(pointing) == pytest.approx(expected)
+
+
+def test_pointing_direction_rejects_invalid_frame_size():
+    with pytest.raises(ValueError):
+        pointing_direction_deg(vector(0.3, 0.0), 640, 0)
