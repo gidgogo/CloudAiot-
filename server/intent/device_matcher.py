@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Cancel reasons from the common interface spec v1.0, section 6.2.
-TARGET_NOT_FOUND = "TARGET_NOT_FOUND"
-AMBIGUOUS_TARGET = "AMBIGUOUS_TARGET"
+from server.intent.cancel_reasons import AMBIGUOUS_TARGET, TARGET_NOT_FOUND
 
 
 @dataclass(frozen=True)
