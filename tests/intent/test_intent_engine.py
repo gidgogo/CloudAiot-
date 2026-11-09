@@ -203,6 +203,7 @@ def test_pointing_without_vector_returns_none(engine):
         detected_at_ms=T0,
     )
     assert engine.consume(no_vector) is None
+    assert engine.state.state is IntentState.IDLE
 
 
 # --- 프레임 크기 (D2: 프레임마다, 없으면 기본 640x480) ---------------------------
@@ -392,6 +393,57 @@ def test_unknown_gesture_returns_none_and_keeps_selection(selected_engine):
     assert selected_engine.state.target_device_id == "fan-01"
 
 
+# --- 받은 메시지 검사 (스펙 3.3, 14.6, 14.7) ------------------------------------
+
+
+def broken(field: str, value, kind: GestureType = GestureType.THUMB_UP) -> GestureResult:
+    result = gesture(kind, T0 + 500, correlation_id="corr-bad")
+    setattr(result, field, value)
+    return result
+
+
+@pytest.mark.parametrize(
+    "field, value, problem",
+    [
+        ("schema_version", "2.0", "UNSUPPORTED_VERSION"),
+        ("gesture", "WAVE", "INVALID_SCHEMA: gesture"),
+        ("gesture", None, "INVALID_SCHEMA: gesture"),
+        ("detected_at_ms", None, "INVALID_SCHEMA: detected_at_ms"),
+        ("detected_at_ms", 10_500.5, "INVALID_SCHEMA: detected_at_ms"),
+        ("stable_frames", True, "INVALID_SCHEMA: stable_frames"),
+        ("hold_time_ms", "500", "INVALID_SCHEMA: hold_time_ms"),
+    ],
+)
+def test_bad_message_is_ignored_and_logged(selected_engine, caplog, field, value, problem):
+    with caplog.at_level("WARNING", logger="server.intent.engine"):
+        assert selected_engine.consume(broken(field, value)) is None
+    assert selected_engine.state.target_device_id == "fan-01"
+    assert caplog.messages == [f"gesture result ignored: {problem} (frame_id=frame-{T0 + 500}, correlation_id=corr-bad)"]
+
+
+def test_pointing_without_vector_is_logged_as_invalid_schema(engine, caplog):
+    with caplog.at_level("WARNING", logger="server.intent.engine"):
+        engine.consume(broken("pointing_vector", None, GestureType.POINTING))
+    assert caplog.messages[0].startswith("gesture result ignored: INVALID_SCHEMA: pointing_vector")
+
+
+def test_pointing_vector_outside_0_to_1_is_rejected(engine, caplog):
+    result = point(0.0, T0)
+    result.pointing_vector.end_x = 1.5  # 만든 뒤에 바뀐 좌표도 잡는다
+    with caplog.at_level("WARNING", logger="server.intent.engine"):
+        assert engine.consume(result) is None
+    assert "INVALID_SCHEMA: pointing_vector" in caplog.messages[0]
+    assert "1.5" not in caplog.text
+
+
+def test_gesture_given_as_plain_string_is_accepted(selected_engine):
+    result = gesture(GestureType.THUMB_UP, T0 + 500)
+    result.gesture = "THUMB_UP"
+    confirmed = selected_engine.consume(result)
+    assert confirmed.status is IntentStatus.CONFIRMED
+    assert confirmed.action is IntentAction.ON
+
+
 # --- 결과 형식 (스펙 6.2) -----------------------------------------------------
 
 
@@ -444,6 +496,43 @@ def test_confirmed_result_serializes_to_spec_values(selected_engine):
     assert data["action"] == "ON"
     assert data["status"] == "CONFIRMED"
     assert data["target_device_id"] == "fan-01"
+
+
+# --- 지연시간 기록 (NFR-01) ---------------------------------------------------
+
+
+@pytest.fixture
+def fixed_clock(monkeypatch):
+    """확정 시각(now_ms)을 고정한다. 제스처 감지 시각은 detected_at_ms로 직접 넣는다."""
+    monkeypatch.setattr("server.intent.engine.now_ms", lambda: T0 + 1_250)
+
+
+def test_confirmed_command_records_latency(selected_engine, fixed_clock):
+    selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000, correlation_id="c-cmd"))
+    assert selected_engine.latency_ms("c-cmd") == 250
+
+
+def test_confirmed_help_records_latency(engine, fixed_clock):
+    engine.consume(gesture(GestureType.HELP, T0 + 1_100, correlation_id="c-help"))
+    assert engine.latency_ms("c-help") == 150
+
+
+def test_only_confirmed_results_record_latency(engine, fixed_clock):
+    assert engine.consume(point(0.0, T0, correlation_id="c-pending")).status is IntentStatus.PENDING
+    assert engine.consume(gesture(GestureType.THUMB_DOWN, T0 + 100, correlation_id="c-confirm")).status is IntentStatus.CONFIRMED
+    assert engine.consume(gesture(GestureType.THUMB_UP, T0 + 200, correlation_id="c-cancel")).status is IntentStatus.CANCELLED
+    assert engine.latency_ms("c-pending") is None
+    assert engine.latency_ms("c-confirm") == 1_150
+    assert engine.latency_ms("c-cancel") is None
+
+
+def test_latency_is_none_for_unknown_correlation_id(engine):
+    assert engine.latency_ms("unknown") is None
+
+
+def test_empty_correlation_id_is_not_tracked(engine, fixed_clock):
+    engine.consume(gesture(GestureType.HELP, T0, correlation_id=""))
+    assert engine.latency.timestamps == {}
 
 
 # --- 기준값 ------------------------------------------------------------------

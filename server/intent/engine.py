@@ -5,14 +5,19 @@ consume() returns an IntentResult only when something meaningful happens
 """
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable
+from dataclasses import replace
 
 from server.intent.cancel_reasons import DIRECTION_CHANGED, GESTURE_TIMEOUT, INVALID_GESTURE, TARGET_NOT_FOUND
 from server.intent.device_matcher import DeviceRegion, match_device_detail, pointing_direction_deg
+from server.intent.latency_tracker import GESTURE_DETECTED, INTENT_CONFIRMED, LatencyTracker
 from server.intent.parameters import IntentParameters
 from server.intent.state_machine import IntentState, SelectionStateMachine
-from shared.constants import DEFAULT_FRAME_HEIGHT, DEFAULT_FRAME_WIDTH
+from shared.constants import DEFAULT_FRAME_HEIGHT, DEFAULT_FRAME_WIDTH, SCHEMA_VERSION
 from shared.types import GestureResult, GestureType, IntentAction, IntentResult, IntentStatus, now_ms
+
+log = logging.getLogger(__name__)
 
 DEFAULT_GESTURE_ACTIONS: dict[GestureType, IntentAction] = {
     GestureType.THUMB_UP: IntentAction.ON,
@@ -35,8 +40,10 @@ class IntentEngine:
         frame_width: int = DEFAULT_FRAME_WIDTH,
         frame_height: int = DEFAULT_FRAME_HEIGHT,
         action_for: ActionLookup | None = None,
+        latency_tracker: LatencyTracker | None = None,
     ) -> None:
         self.parameters = parameters or IntentParameters()
+        self.latency = latency_tracker or LatencyTracker()
         self.state = state_machine or SelectionStateMachine(
             timeout_ms=self.parameters.selection_timeout_ms,
             max_angle_delta_deg=self.parameters.max_angle_delta_deg,
@@ -56,6 +63,10 @@ class IntentEngine:
     def regions(self) -> tuple[DeviceRegion, ...]:
         return tuple(self._regions)
 
+    def latency_ms(self, correlation_id: str) -> int | None:
+        """NFR-01: time from detecting the confirming gesture to confirming the intent, or None if unknown."""
+        return self.latency.elapsed_ms(correlation_id, GESTURE_DETECTED, INTENT_CONFIRMED)
+
     def update_regions(self, regions: Iterable[DeviceRegion]) -> None:
         """Replace the device regions, for example after the web dashboard edits a device."""
         self._regions = list(regions)
@@ -73,6 +84,10 @@ class IntentEngine:
         frame_height: int | None = None,
     ) -> IntentResult | None:
         """Process one gesture result. Pass the frame size from the frame metadata when it is known."""
+        checked = self._checked(result)
+        if checked is None:
+            return None
+        result = checked
         at_ms = result.detected_at_ms
         if self._is_stale(at_ms):
             return None
@@ -91,6 +106,43 @@ class IntentEngine:
             return self._point(result, width, height)
         if result.gesture in MAPPABLE_GESTURES and result.gesture is not self._acted_gesture:
             return self._mapped(result)
+        return None
+
+    def _checked(self, result: GestureResult) -> GestureResult | None:
+        """Spec 3.3, 14.6, 14.7: check the version and schema before use; ignore and log bad messages."""
+        problem = self._schema_problem(result)
+        if problem is not None:
+            # Only identifiers and the reason are logged, never coordinates or frame contents.
+            log.warning(
+                "gesture result ignored: %s (frame_id=%s, correlation_id=%s)",
+                problem,
+                getattr(result, "frame_id", None),
+                getattr(result, "correlation_id", None),
+            )
+            return None
+        if not isinstance(result.gesture, GestureType):
+            result = replace(result, gesture=GestureType(result.gesture))
+        return result
+
+    @staticmethod
+    def _schema_problem(result: GestureResult) -> str | None:
+        if result.schema_version != SCHEMA_VERSION:
+            return "UNSUPPORTED_VERSION"
+        try:
+            gesture = GestureType(result.gesture)
+        except ValueError:
+            return "INVALID_SCHEMA: gesture"
+        for name in ("detected_at_ms", "stable_frames", "hold_time_ms"):
+            value = getattr(result, name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                return f"INVALID_SCHEMA: {name}"
+        vector = result.pointing_vector
+        if gesture is GestureType.POINTING and vector is None:
+            return "INVALID_SCHEMA: pointing_vector"
+        if vector is not None and not all(
+            0.0 <= value <= 1.0 for value in (vector.start_x, vector.start_y, vector.end_x, vector.end_y)
+        ):
+            return "INVALID_SCHEMA: pointing_vector"
         return None
 
     def _is_stale(self, at_ms: int) -> bool:
@@ -156,12 +208,7 @@ class IntentEngine:
         self._last_help_at_ms = result.detected_at_ms
         # Asking for help drops any device selection so a following thumb cannot operate it.
         self.state.clear()
-        return IntentResult(
-            correlation_id=result.correlation_id,
-            action=IntentAction.HELP,
-            status=IntentStatus.CONFIRMED,
-            confirmed_at_ms=now_ms(),
-        )
+        return self._confirmed(result, IntentAction.HELP)
 
     def _command(self, result: GestureResult, action: IntentAction) -> IntentResult:
         self._acted_gesture = result.gesture
@@ -169,12 +216,25 @@ class IntentEngine:
         if target is None:
             return self._cancelled(result, TARGET_NOT_FOUND, action=action)
         self.state.confirm()
+        return self._confirmed(result, action, target_device_id=target)
+
+    def _confirmed(
+        self,
+        result: GestureResult,
+        action: IntentAction,
+        *,
+        target_device_id: str | None = None,
+    ) -> IntentResult:
+        confirmed_at_ms = now_ms()
+        if result.correlation_id:
+            self.latency.mark(result.correlation_id, GESTURE_DETECTED, result.detected_at_ms)
+            self.latency.mark(result.correlation_id, INTENT_CONFIRMED, confirmed_at_ms)
         return IntentResult(
             correlation_id=result.correlation_id,
-            target_device_id=target,
+            target_device_id=target_device_id,
             action=action,
             status=IntentStatus.CONFIRMED,
-            confirmed_at_ms=now_ms(),
+            confirmed_at_ms=confirmed_at_ms,
         )
 
     @staticmethod
