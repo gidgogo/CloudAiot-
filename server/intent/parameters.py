@@ -6,3 +6,4 @@ class IntentParameters:
     min_stable_frames: int = 6
     min_hold_ms: int = 500
     max_angle_delta_deg: float = 15.0
+    help_cooldown_ms: int = 5000
