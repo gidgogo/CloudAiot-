@@ -21,6 +21,9 @@ from shared.types import PointingVector
 
 FAN = DeviceRegion("fan-01", -15.0, 15.0)
 LIGHT = DeviceRegion("light-01", 30.0, 60.0)
+TV = DeviceRegion("tv-01", 10.0, 40.0)  # FAN, LIGHT와 겹친다
+RIGHT = DeviceRegion("right-01", 15.0, 45.0)  # FAN과 15°에서 경계가 맞닿는다
+DISABLED_FAN = DeviceRegion("fan-01", -15.0, 15.0, enabled=False)
 
 
 @pytest.mark.parametrize("angle, expected", [(0.0, "fan-01"), (45.0, "light-01")])
@@ -34,15 +37,13 @@ def test_angle_outside_every_region_returns_none(angle):
 
 
 def test_overlapping_regions_return_none():
-    tv = DeviceRegion("tv-01", 10.0, 40.0)
-    assert match_device(12.0, [FAN, tv]) is None
-    assert match_device(35.0, [tv, LIGHT]) is None
+    assert match_device(12.0, [FAN, TV]) is None
+    assert match_device(35.0, [TV, LIGHT]) is None
 
 
 def test_angle_outside_the_overlap_still_matches():
-    tv = DeviceRegion("tv-01", 10.0, 40.0)
-    assert match_device(5.0, [FAN, tv]) == "fan-01"
-    assert match_device(20.0, [FAN, tv]) == "tv-01"
+    assert match_device(5.0, [FAN, TV]) == "fan-01"
+    assert match_device(20.0, [FAN, TV]) == "tv-01"
 
 
 @pytest.mark.parametrize("angle", [-15.0, 15.0])
@@ -51,8 +52,7 @@ def test_region_boundaries_are_inclusive(angle):
 
 
 def test_touching_boundaries_count_as_overlap():
-    right = DeviceRegion("right-01", 15.0, 45.0)
-    assert match_device(15.0, [FAN, right]) is None
+    assert match_device(15.0, [FAN, RIGHT]) is None
 
 
 def test_empty_regions_return_none():
@@ -77,18 +77,16 @@ def test_detail_reports_target_not_found(regions):
 
 
 def test_detail_reports_ambiguous_target_on_overlap():
-    tv = DeviceRegion("tv-01", 10.0, 40.0)
-    assert match_device_detail(12.0, [FAN, tv]) == DeviceMatch(None, AMBIGUOUS_TARGET)
+    assert match_device_detail(12.0, [FAN, TV]) == DeviceMatch(None, AMBIGUOUS_TARGET)
 
 
 def test_detail_reports_touching_boundary_as_ambiguous():
-    right = DeviceRegion("right-01", 15.0, 45.0)
-    assert match_device_detail(15.0, [FAN, right]) == DeviceMatch(None, AMBIGUOUS_TARGET)
+    assert match_device_detail(15.0, [FAN, RIGHT]) == DeviceMatch(None, AMBIGUOUS_TARGET)
 
 
 @pytest.mark.parametrize("angle", [-90.0, -15.0, 0.0, 12.0, 15.0, 20.0, 45.0, 180.0])
 def test_match_device_agrees_with_detail(angle):
-    regions = [FAN, LIGHT, DeviceRegion("tv-01", 10.0, 40.0)]
+    regions = [FAN, LIGHT, TV]
     assert match_device(angle, regions) == match_device_detail(angle, regions).device_id
 
 
@@ -100,9 +98,8 @@ def test_regions_are_enabled_by_default():
 
 
 def test_disabled_device_is_not_matched():
-    disabled_fan = DeviceRegion("fan-01", -15.0, 15.0, enabled=False)
-    assert match_device_detail(0.0, [disabled_fan]) == DeviceMatch(None, TARGET_NOT_FOUND)
-    assert match_device(0.0, [disabled_fan]) is None
+    assert match_device_detail(0.0, [DISABLED_FAN]) == DeviceMatch(None, TARGET_NOT_FOUND)
+    assert match_device(0.0, [DISABLED_FAN]) is None
 
 
 def test_disabled_device_does_not_make_overlap_ambiguous():
@@ -166,28 +163,27 @@ def test_pointing_angle_convention(direction, pointing, device):
     assert match_pointing(pointing, regions).device_id == device, direction
 
 
+DIAGONAL = vector(0.1, 0.1)  # 640x480에서는 약 36.9°, 480x480에서는 45°
+DIAGONAL_REGIONS = [DeviceRegion("shelf-01", 30.0, 40.0), DeviceRegion("lamp-01", 42.0, 50.0)]
+
+
 def test_aspect_ratio_changes_the_matched_device():
-    diagonal = vector(0.1, 0.1)  # 640x480에서는 약 36.9°, 480x480에서는 45°
-    regions = [DeviceRegion("shelf-01", 30.0, 40.0), DeviceRegion("lamp-01", 42.0, 50.0)]
-    assert match_pointing(diagonal, regions, 640, 480).device_id == "shelf-01"
-    assert match_pointing(diagonal, regions, 480, 480).device_id == "lamp-01"
+    assert match_pointing(DIAGONAL, DIAGONAL_REGIONS, 640, 480).device_id == "shelf-01"
+    assert match_pointing(DIAGONAL, DIAGONAL_REGIONS, 480, 480).device_id == "lamp-01"
 
 
 def test_default_frame_size_is_640_by_480():
-    diagonal = vector(0.1, 0.1)
-    regions = [DeviceRegion("shelf-01", 30.0, 40.0), DeviceRegion("lamp-01", 42.0, 50.0)]
-    assert match_pointing(diagonal, regions) == match_pointing(diagonal, regions, 640, 480)
+    assert match_pointing(DIAGONAL, DIAGONAL_REGIONS) == match_pointing(DIAGONAL, DIAGONAL_REGIONS, 640, 480)
 
 
 def test_match_pointing_reports_spec_reasons():
     assert match_pointing(vector(0.0, 0.3), [FAN]) == DeviceMatch(None, TARGET_NOT_FOUND)
-    tv = DeviceRegion("tv-01", -5.0, 5.0)
-    assert match_pointing(vector(0.3, 0.0), [FAN, tv]) == DeviceMatch(None, AMBIGUOUS_TARGET)
+    inner_tv = DeviceRegion("tv-01", -5.0, 5.0)
+    assert match_pointing(vector(0.3, 0.0), [FAN, inner_tv]) == DeviceMatch(None, AMBIGUOUS_TARGET)
 
 
 def test_match_pointing_skips_disabled_devices():
-    disabled_fan = DeviceRegion("fan-01", -15.0, 15.0, enabled=False)
-    assert match_pointing(vector(0.3, 0.0), [disabled_fan]) == DeviceMatch(None, TARGET_NOT_FOUND)
+    assert match_pointing(vector(0.3, 0.0), [DISABLED_FAN]) == DeviceMatch(None, TARGET_NOT_FOUND)
 
 
 @pytest.mark.parametrize("width, height", [(0, 480), (640, 0), (-640, 480)])

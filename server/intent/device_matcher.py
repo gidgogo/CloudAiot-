@@ -61,6 +61,7 @@ def match_device_detail(angle_deg: float, regions: list[DeviceRegion]) -> Device
 
 
 def match_device(angle_deg: float, regions: list[DeviceRegion]) -> str | None:
+    """Only the matched device_id; None when no device or more than one device matches."""
     return match_device_detail(angle_deg, regions).device_id
 
 

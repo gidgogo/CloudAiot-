@@ -56,7 +56,10 @@ class SelectionStateMachine:
         return True
 
     def active_target(self, timestamp_ms: int) -> str | None:
-        """Return the selected device while the selection is still valid at timestamp_ms."""
+        """Return the selected device while the selection is still valid at timestamp_ms.
+
+        Past the timeout the selection is cancelled with GESTURE_TIMEOUT and None is returned.
+        """
         if self.state is not IntentState.TARGET_SELECTED:
             return None
         elapsed_ms = timestamp_ms - self.selected_at_ms
@@ -70,20 +73,20 @@ class SelectionStateMachine:
 
     def confirm(self) -> None:
         """Call after the intent is confirmed so the same selection cannot confirm twice."""
-        self._reset()
-        self.last_cancel_reason = None
+        self._reset(cancel_reason=None)
 
     def cancel(self, reason: str) -> None:
-        self._reset()
-        self.last_cancel_reason = reason
+        """Drop the selection and remember the spec 6.2 reason in last_cancel_reason."""
+        self._reset(cancel_reason=reason)
 
     def clear(self) -> None:
         """Drop the selection without a cancel reason (for example after HELP or when the device is removed)."""
-        self._reset()
-        self.last_cancel_reason = None
+        self._reset(cancel_reason=None)
 
-    def _reset(self) -> None:
+    def _reset(self, *, cancel_reason: str | None) -> None:
+        """Back to IDLE with no target; every way out of TARGET_SELECTED goes through here."""
         self.state = IntentState.IDLE
         self.target_device_id = None
         self.selected_at_ms = 0
         self.selected_angle_deg = None
+        self.last_cancel_reason = cancel_reason

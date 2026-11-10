@@ -32,6 +32,8 @@ COOLDOWN_MS = PARAMS.help_cooldown_ms
 FAN = DeviceRegion("fan-01", -15.0, 15.0)  # 오른쪽
 LIGHT = DeviceRegion("light-01", 75.0, 105.0)  # 아래
 REGIONS = [FAN, LIGHT]
+TV = DeviceRegion("tv-01", -5.0, 5.0)  # FAN 안쪽과 겹친다
+DISABLED_FAN = DeviceRegion("fan-01", -15.0, 15.0, enabled=False)
 
 
 def toward(angle_deg: float, width: int = 640, height: int = 480) -> PointingVector:
@@ -172,7 +174,7 @@ def test_target_not_found_is_reported_again_after_another_gesture(engine):
 
 
 def test_pointing_at_overlap_reports_ambiguous_target():
-    engine = IntentEngine([FAN, DeviceRegion("tv-01", -5.0, 5.0)])
+    engine = IntentEngine([FAN, TV])
     result = engine.consume(point(0.0, T0))
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == AMBIGUOUS_TARGET
@@ -180,30 +182,19 @@ def test_pointing_at_overlap_reports_ambiguous_target():
 
 
 def test_pointing_reason_change_is_reported():
-    engine = IntentEngine([FAN, DeviceRegion("tv-01", -5.0, 5.0)])
+    engine = IntentEngine([FAN, TV])
     assert engine.consume(point(0.0, T0)).cancel_reason == AMBIGUOUS_TARGET
     assert engine.consume(point(45.0, T0 + 100)).cancel_reason == TARGET_NOT_FOUND
 
 
 def test_disabled_device_is_not_selected():
-    engine = IntentEngine([DeviceRegion("fan-01", -15.0, 15.0, enabled=False)])
+    engine = IntentEngine([DISABLED_FAN])
     assert engine.consume(point(0.0, T0)).cancel_reason == TARGET_NOT_FOUND
 
 
 def test_wraparound_region_is_selected():
     engine = IntentEngine([DeviceRegion("door-01", 170.0, -170.0)])
     assert engine.consume(point(180.0, T0)).target_device_id == "door-01"
-
-
-def test_pointing_without_vector_returns_none(engine):
-    no_vector = GestureResult(
-        gesture=GestureType.POINTING,
-        stable_frames=PARAMS.min_stable_frames,
-        hold_time_ms=PARAMS.min_hold_ms,
-        detected_at_ms=T0,
-    )
-    assert engine.consume(no_vector) is None
-    assert engine.state.state is IntentState.IDLE
 
 
 # --- 프레임 크기 (D2: 프레임마다, 없으면 기본 640x480) ---------------------------
@@ -248,7 +239,7 @@ def test_update_regions_is_used_for_next_pointing():
 
 @pytest.mark.parametrize(
     "new_regions",
-    [[LIGHT], [DeviceRegion("fan-01", -15.0, 15.0, enabled=False), LIGHT]],
+    [[LIGHT], [DISABLED_FAN, LIGHT]],
     ids=["removed", "disabled"],
 )
 def test_removing_or_disabling_selected_device_drops_selection(selected_engine, new_regions):
@@ -421,10 +412,13 @@ def test_bad_message_is_ignored_and_logged(selected_engine, caplog, field, value
     assert caplog.messages == [f"gesture result ignored: {problem} (frame_id=frame-{T0 + 500}, correlation_id=corr-bad)"]
 
 
-def test_pointing_without_vector_is_logged_as_invalid_schema(engine, caplog):
+def test_pointing_without_vector_is_ignored_and_logged(engine, caplog):
     with caplog.at_level("WARNING", logger="server.intent.engine"):
-        engine.consume(broken("pointing_vector", None, GestureType.POINTING))
-    assert caplog.messages[0].startswith("gesture result ignored: INVALID_SCHEMA: pointing_vector")
+        assert engine.consume(broken("pointing_vector", None, GestureType.POINTING)) is None
+    assert engine.state.state is IntentState.IDLE
+    assert caplog.messages == [
+        f"gesture result ignored: INVALID_SCHEMA: pointing_vector (frame_id=frame-{T0 + 500}, correlation_id=corr-bad)"
+    ]
 
 
 def test_pointing_vector_outside_0_to_1_is_rejected(engine, caplog):

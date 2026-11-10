@@ -19,6 +19,7 @@ class LatencyTracker:
             raise ValueError("max_entries must be at least 1")
 
     def mark(self, correlation_id: str, name: str, timestamp_ms: int) -> None:
+        """Record when name happened for correlation_id; a new correlation_id may drop the oldest one."""
         if correlation_id not in self.timestamps:
             self.timestamps[correlation_id] = {}
             while len(self.timestamps) > self.max_entries:
@@ -26,5 +27,8 @@ class LatencyTracker:
         self.timestamps[correlation_id][name] = timestamp_ms
 
     def elapsed_ms(self, correlation_id: str, start: str, end: str) -> int | None:
-        values = self.timestamps.get(correlation_id, {})
-        return values[end] - values[start] if start in values and end in values else None
+        """end minus start for correlation_id, or None when either time is missing."""
+        marks = self.timestamps.get(correlation_id, {})
+        if start not in marks or end not in marks:
+            return None
+        return marks[end] - marks[start]

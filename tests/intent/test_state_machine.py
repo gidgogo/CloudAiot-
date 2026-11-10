@@ -102,12 +102,6 @@ def test_cancel_returns_to_idle_and_keeps_reason(selected):
     assert selected.last_cancel_reason == DIRECTION_CHANGED
 
 
-def test_select_clears_previous_cancel_reason(selected):
-    selected.cancel(DIRECTION_CHANGED)
-    selected.select("light-01", SELECTED_AT + 5_000)
-    assert selected.last_cancel_reason is None
-
-
 def test_confirm_clears_previous_cancel_reason(selected):
     selected.active_target(SELECTED_AT + TIMEOUT_MS + 1)
     selected.select("light-01", SELECTED_AT + 5_000)
@@ -121,10 +115,11 @@ def test_select_again_replaces_target_and_restarts_timer(selected):
     assert selected.active_target(SELECTED_AT + 4_500) == "light-01"
 
 
-def test_select_after_cancel_works_again(selected):
+def test_select_after_cancel_works_again_and_clears_reason(selected):
     selected.cancel(DIRECTION_CHANGED)
     selected.select("light-01", SELECTED_AT + 5_000)
     assert selected.state is IntentState.TARGET_SELECTED
+    assert selected.last_cancel_reason is None
     assert selected.active_target(SELECTED_AT + 5_100) == "light-01"
 
 
