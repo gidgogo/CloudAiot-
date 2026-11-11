@@ -543,3 +543,49 @@ def test_custom_parameters_are_used():
     assert engine.state.max_angle_delta_deg == 5.0
     engine.consume(point(0.0, T0, stable_frames=2, hold_time_ms=100))
     assert engine.consume(point(6.0, T0 + 100, stable_frames=2, hold_time_ms=100)).cancel_reason == DIRECTION_CHANGED
+
+
+# --- tick: 프레임이 없어도 선택 시간 만료 ----------------------------------------
+
+
+def test_tick_does_nothing_without_selection(engine):
+    assert engine.tick(T0 + TIMEOUT_MS * 10) is None
+
+
+def test_tick_within_timeout_keeps_selection(selected_engine):
+    assert selected_engine.tick(T0 + TIMEOUT_MS) is None
+    assert selected_engine.state.state is IntentState.TARGET_SELECTED
+
+
+def test_tick_after_timeout_cancels_once_with_gesture_timeout(selected_engine):
+    result = selected_engine.tick(T0 + TIMEOUT_MS + 1)
+    assert result.status is IntentStatus.CANCELLED
+    assert result.cancel_reason == GESTURE_TIMEOUT
+    assert result.target_device_id == "fan-01"
+    assert result.correlation_id == "corr-1"
+    assert selected_engine.state.state is IntentState.IDLE
+    assert selected_engine.tick(T0 + TIMEOUT_MS + 2) is None
+
+
+def test_tick_uses_correlation_id_of_latest_pointing_frame(engine):
+    engine.consume(point(0.0, T0, correlation_id="first"))
+    engine.consume(point(0.0, T0 + 1_000, correlation_id="second"))
+    assert engine.tick(T0 + 1_000 + TIMEOUT_MS + 1).correlation_id == "second"
+
+
+def test_keep_alive_pointing_postpones_tick_timeout(selected_engine):
+    selected_engine.consume(point(0.0, T0 + 2_000))
+    assert selected_engine.tick(T0 + TIMEOUT_MS + 1) is None
+    assert selected_engine.tick(T0 + 2_000 + TIMEOUT_MS + 1).cancel_reason == GESTURE_TIMEOUT
+
+
+def test_frame_after_tick_timeout_is_not_reported_again(selected_engine):
+    selected_engine.tick(T0 + TIMEOUT_MS + 1)
+    assert selected_engine.consume(gesture(GestureType.UNKNOWN, T0 + TIMEOUT_MS + 2)) is None
+
+
+def test_tick_without_time_uses_current_clock(selected_engine, monkeypatch):
+    monkeypatch.setattr("server.intent.engine.now_ms", lambda: T0 + TIMEOUT_MS)
+    assert selected_engine.tick() is None
+    monkeypatch.setattr("server.intent.engine.now_ms", lambda: T0 + TIMEOUT_MS + 1)
+    assert selected_engine.tick().cancel_reason == GESTURE_TIMEOUT

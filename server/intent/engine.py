@@ -68,6 +68,8 @@ class IntentEngine:
         # The last "no single device" reason reported while pointing, so it is reported once per run.
         self._last_pointing_reason: str | None = None
         self._last_help_at_ms: int | None = None
+        # The correlation_id of the latest pointing frame of the current selection, used by tick().
+        self._selection_correlation_id = ""
 
     @property
     def regions(self) -> tuple[DeviceRegion, ...]:
@@ -106,6 +108,22 @@ class IntentEngine:
         if checked.gesture in MAPPABLE_GESTURES and checked.gesture is not self._acted_gesture:
             return self._mapped(checked)
         return None
+
+    def tick(self, at_ms: int | None = None) -> IntentResult | None:
+        """Expire the selection by time alone, for when no frames arrive (for example the edge disconnected).
+
+        Call this periodically. Past the selection timeout it returns one GESTURE_TIMEOUT cancellation
+        (with the correlation_id of the last pointing frame) and drops the selection; otherwise None.
+        at_ms defaults to the current UTC time in ms.
+        """
+        if self.state.state is not IntentState.TARGET_SELECTED:
+            return None
+        timed_out_device = self._expire_selection(now_ms() if at_ms is None else at_ms)
+        if timed_out_device is None:
+            return None
+        return self._cancelled_for(
+            self._selection_correlation_id, GESTURE_TIMEOUT, target_device_id=timed_out_device
+        )
 
     # --- frame bookkeeping ----------------------------------------------------
 
@@ -156,6 +174,7 @@ class IntentEngine:
                 return self._cancelled(result, DIRECTION_CHANGED, target_device_id=selected)
             # Within the allowed angle: keep the current device even if a neighbouring region matches.
             self.state.keep_alive(result.detected_at_ms)
+            self._selection_correlation_id = result.correlation_id
             return None
         match = match_device_detail(angle_deg, self._regions)
         if match.device_id is None:
@@ -165,6 +184,7 @@ class IntentEngine:
             return self._cancelled(result, match.cancel_reason)
         self._last_pointing_reason = None
         self.state.select(match.device_id, result.detected_at_ms, angle_deg=angle_deg)
+        self._selection_correlation_id = result.correlation_id
         return IntentResult(correlation_id=result.correlation_id, target_device_id=match.device_id)
 
     # --- thumb and HELP: act through the gesture mapping ------------------------
@@ -235,8 +255,20 @@ class IntentEngine:
         target_device_id: str | None = None,
         action: IntentAction | None = None,
     ) -> IntentResult:
+        return IntentEngine._cancelled_for(
+            result.correlation_id, reason, target_device_id=target_device_id, action=action
+        )
+
+    @staticmethod
+    def _cancelled_for(
+        correlation_id: str,
+        reason: str,
+        *,
+        target_device_id: str | None = None,
+        action: IntentAction | None = None,
+    ) -> IntentResult:
         cancelled = IntentResult(
-            correlation_id=result.correlation_id,
+            correlation_id=correlation_id,
             target_device_id=target_device_id,
             status=IntentStatus.CANCELLED,
             cancel_reason=reason,
