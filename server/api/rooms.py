@@ -1,11 +1,29 @@
 """방 등록·조회·수정·삭제 API. 조회는 로그인 사용자, 변경은 ADMIN."""
 
-from fastapi import APIRouter, Response
+from __future__ import annotations
 
-from server.api.deps import AdminUser, CurrentUser, RoomServiceDep
-from server.api.schemas import RoomCreate, RoomUpdate, ok
+from fastapi import APIRouter, Response
+from pydantic import Field
+
+from server.api import ID_PATTERN, AdminUser, CurrentUser, PatchModel, RoomServiceDep, StrictModel, ok
 from server.services.room_service import room_to_dict
 from shared.constants import API_PREFIX
+
+# --- x
+
+class RoomCreate(StrictModel):
+    room_id: str | None = Field(default=None, pattern=ID_PATTERN)
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    resident_user_id: str | None = Field(default=None, pattern=ID_PATTERN)
+
+
+class RoomUpdate(PatchModel):
+    NON_NULLABLE = frozenset({"name"})
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    resident_user_id: str | None = Field(default=None, pattern=ID_PATTERN)
+
 
 router = APIRouter(prefix=f"{API_PREFIX}/rooms", tags=["rooms"])
 
@@ -26,12 +44,8 @@ def get_room(room_id: str, _user: CurrentUser, service: RoomServiceDep) -> dict:
 
 
 @router.patch("/{room_id}")
-def update_room(
-    room_id: str, body: RoomUpdate, _admin: AdminUser, service: RoomServiceDep
-) -> dict:
-    return ok(
-        room_to_dict(service.update(room_id, body.model_dump(exclude_unset=True)))
-    )
+def update_room(room_id: str, body: RoomUpdate, _admin: AdminUser, service: RoomServiceDep) -> dict:
+    return ok(room_to_dict(service.update(room_id, body.model_dump(exclude_unset=True))))
 
 
 @router.delete("/{room_id}", status_code=204)

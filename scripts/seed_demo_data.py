@@ -18,13 +18,12 @@ import argparse
 import os
 import secrets
 
-from server.bootstrap import bootstrap
-from server.db.session import Database
+from server.config import Settings
+from server.db.session import Database, bootstrap
 from server.security.authentication import validate_password
 from server.services.device_service import DeviceService
 from server.services.room_service import RoomService
 from server.services.user_service import UserService
-from server.settings import Settings
 from shared.errors import InterfaceError
 
 ACCOUNTS = (
@@ -34,24 +33,10 @@ ACCOUNTS = (
 )
 DEVICES = (
     # 화면 기준 각도: 오른쪽 0°, 아래 +90°, 위 -90°
-    {
-        "device_id": "fan-01",
-        "name": "선풍기",
-        "device_type": "FAN",
-        "map_x": 0.8,
-        "map_y": 0.5,
-        "min_angle_deg": -25.0,
-        "max_angle_deg": 25.0,
-    },
-    {
-        "device_id": "light-01",
-        "name": "조명",
-        "device_type": "LIGHT",
-        "map_x": 0.5,
-        "map_y": 0.1,
-        "min_angle_deg": -115.0,
-        "max_angle_deg": -65.0,
-    },
+    {"device_id": "fan-01", "name": "선풍기", "device_type": "FAN", "map_x": 0.8, "map_y": 0.5,
+     "min_angle_deg": -25.0, "max_angle_deg": 25.0},
+    {"device_id": "light-01", "name": "조명", "device_type": "LIGHT", "map_x": 0.5, "map_y": 0.1,
+     "min_angle_deg": -115.0, "max_angle_deg": -65.0},
 )
 
 
@@ -70,42 +55,26 @@ def seed(db: Database, password: str) -> list[str]:
     with db.session() as session:
         users = UserService(session)
         for user_id, email, name, role in ACCOUNTS:
-            if _skip_existing(
-                lambda: users.create(
-                    user_id=user_id,
-                    email=email,
-                    password=password,
-                    name=name,
-                    role=role,
-                )
-            ):
+            if _skip_existing(lambda: users.create(user_id=user_id, email=email, password=password, name=name,
+                                                   role=role)):
                 created.append(f"user {email}")
         users.link_guardian("guardian-01", "user-01")
 
         rooms = RoomService(session)
-        if _skip_existing(
-            lambda: rooms.create(
-                room_id="room-01", name="안방", resident_user_id="user-01"
-            )
-        ):
+        if _skip_existing(lambda: rooms.create(room_id="room-01", name="안방", resident_user_id="user-01")):
             created.append("room room-01")
 
         devices = DeviceService(session)
         for spec in DEVICES:
-            if _skip_existing(
-                lambda spec=spec: devices.create(room_id="room-01", **spec)
-            ):
+            if _skip_existing(lambda spec=spec: devices.create(room_id="room-01", **spec)):
                 created.append(f"device {spec['device_id']}")
     return created
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="CloudAIoT 데모 데이터 생성")
-    parser.add_argument(
-        "--password",
-        default=os.environ.get("DEMO_PASSWORD"),
-        help="세 데모 계정의 비밀번호(8자 이상). 없으면 임의로 만든다.",
-    )
+    parser.add_argument("--password", default=os.environ.get("DEMO_PASSWORD"),
+                        help="세 데모 계정의 비밀번호(8자 이상). 없으면 임의로 만든다.")
     args = parser.parse_args()
     password = args.password or secrets.token_urlsafe(9)
     try:

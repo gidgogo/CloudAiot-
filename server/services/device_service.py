@@ -8,25 +8,26 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
-from server.db.models import Device
-from server.db.repositories import DeviceRepository
+from server.db.models import Device, GestureMapping
+from server.db.repositories import DeviceRepository, GestureMappingRepository
 from server.intent.device_matcher import DeviceRegion
-from server.services.errors import reject_unknown_fields, web_error
-from server.services.events import EventHub
+from server.services import reject_unknown_fields, web_error
 from server.services.room_service import RoomService
-from shared.types import DeviceConnectionStatus, DeviceState, new_id, now_ms
+from shared.types import DeviceConnectionStatus, DeviceState, GestureType, IntentAction, new_id, now_ms
 
-# 배치도 좌표와 포인팅 각도의 허용 범위. API 스키마(server/api/schemas.py)도 이 값을 쓴다.
+if TYPE_CHECKING:
+    from server.api.websocket import EventHub  # 실행 시 순환 import를 피한다.
+
+
+# 배치도 좌표와 포인팅 각도의 허용 범위. API 요청 본문 검증(server/api/devices.py)도 이 값을 쓴다.
 MAP_MIN, MAP_MAX = 0.0, 1.0
 ANGLE_MIN, ANGLE_MAX = -180.0, 180.0
 GEOMETRY_FIELDS = ("map_x", "map_y", "min_angle_deg", "max_angle_deg")
-UPDATABLE_FIELDS = frozenset(
-    {"room_id", "name", "device_type", "enabled", *GEOMETRY_FIELDS}
-)
+UPDATABLE_FIELDS = frozenset({"room_id", "name", "device_type", "enabled", *GEOMETRY_FIELDS})
 
 
 def device_to_dict(device: Device) -> dict[str, Any]:
@@ -36,10 +37,7 @@ def device_to_dict(device: Device) -> dict[str, Any]:
         "name": device.name,
         "device_type": device.device_type,
         "map_position": {"x": device.map_x, "y": device.map_y},
-        "pointing_region": {
-            "min_angle_deg": device.min_angle_deg,
-            "max_angle_deg": device.max_angle_deg,
-        },
+        "pointing_region": {"min_angle_deg": device.min_angle_deg, "max_angle_deg": device.max_angle_deg},
         "enabled": device.enabled,
         "state": device.state,
         "connection_status": device.connection_status,
@@ -50,27 +48,16 @@ def device_to_dict(device: Device) -> dict[str, Any]:
 
 
 def _state_event_data(device: Device) -> dict[str, Any]:
-    return {
-        "device_id": device.device_id,
-        "state": device.state,
-        "connection_status": device.connection_status,
-        "updated_at_ms": device.state_updated_at_ms,
-    }
+    return {"device_id": device.device_id, "state": device.state,
+            "connection_status": device.connection_status, "updated_at_ms": device.state_updated_at_ms}
 
 
 def _validate_geometry(values: Mapping[str, float]) -> None:
     """API를 거치지 않고 서비스를 직접 부르는 경우까지 같은 범위를 지킨다."""
-    if not (
-        MAP_MIN <= values["map_x"] <= MAP_MAX and MAP_MIN <= values["map_y"] <= MAP_MAX
-    ):
+    if not (MAP_MIN <= values["map_x"] <= MAP_MAX and MAP_MIN <= values["map_y"] <= MAP_MAX):
         raise web_error("INVALID_SCHEMA", "map_position은 0.0~1.0 범위여야 합니다.")
-    if not (
-        ANGLE_MIN <= values["min_angle_deg"] < values["max_angle_deg"] <= ANGLE_MAX
-    ):
-        raise web_error(
-            "INVALID_SCHEMA",
-            "pointing_region은 -180~180 범위에서 min_angle_deg < max_angle_deg여야 합니다.",
-        )
+    if not (ANGLE_MIN <= values["min_angle_deg"] < values["max_angle_deg"] <= ANGLE_MAX):
+        raise web_error("INVALID_SCHEMA", "pointing_region은 -180~180 범위에서 min_angle_deg < max_angle_deg여야 합니다.")
 
 
 class DeviceService:
@@ -80,9 +67,7 @@ class DeviceService:
         self.devices = DeviceRepository(session)
         self.rooms = RoomService(session)
 
-    def list(
-        self, room_id: str | None = None, enabled: bool | None = None
-    ) -> list[Device]:
+    def list(self, room_id: str | None = None, enabled: bool | None = None) -> list[Device]:
         return self.devices.list(room_id=room_id, enabled=enabled)
 
     def get(self, device_id: str, correlation_id: str | None = None) -> Device:
@@ -91,44 +76,19 @@ class DeviceService:
             raise web_error("DEVICE_NOT_FOUND", correlation_id=correlation_id)
         return device
 
-    def create(
-        self,
-        *,
-        room_id: str,
-        name: str,
-        device_type: str,
-        map_x: float,
-        map_y: float,
-        min_angle_deg: float,
-        max_angle_deg: float,
-        enabled: bool = True,
-        device_id: str | None = None,
-    ) -> Device:
+    def create(self, *, room_id: str, name: str, device_type: str, map_x: float, map_y: float,
+               min_angle_deg: float, max_angle_deg: float, enabled: bool = True,
+               device_id: str | None = None) -> Device:
         if device_id and self.devices.get(device_id) is not None:
             raise web_error("DEVICE_ALREADY_EXISTS")
         self.rooms.get(room_id)
-        geometry = {
-            "map_x": map_x,
-            "map_y": map_y,
-            "min_angle_deg": min_angle_deg,
-            "max_angle_deg": max_angle_deg,
-        }
+        geometry = {"map_x": map_x, "map_y": map_y, "min_angle_deg": min_angle_deg, "max_angle_deg": max_angle_deg}
         _validate_geometry(geometry)
         timestamp = now_ms()
-        device = self.devices.add(
-            Device(
-                device_id=device_id or new_id(),
-                room_id=room_id,
-                name=name,
-                device_type=device_type,
-                enabled=enabled,
-                state=DeviceState.UNKNOWN.value,
-                connection_status=DeviceConnectionStatus.OFFLINE.value,
-                created_at_ms=timestamp,
-                updated_at_ms=timestamp,
-                **geometry,
-            )
-        )
+        device = self.devices.add(Device(
+            device_id=device_id or new_id(), room_id=room_id, name=name, device_type=device_type, enabled=enabled,
+            state=DeviceState.UNKNOWN.value, connection_status=DeviceConnectionStatus.OFFLINE.value,
+            created_at_ms=timestamp, updated_at_ms=timestamp, **geometry))
         self.session.commit()
         return device
 
@@ -138,12 +98,7 @@ class DeviceService:
         if "room_id" in changes:
             self.rooms.get(changes["room_id"])
         # 바꾼 뒤의 값으로 먼저 검사해, 잘못된 값이 세션에 남지 않게 한다.
-        _validate_geometry(
-            {
-                field: changes.get(field, getattr(device, field))
-                for field in GEOMETRY_FIELDS
-            }
-        )
+        _validate_geometry({field: changes.get(field, getattr(device, field)) for field in GEOMETRY_FIELDS})
         for field, value in changes.items():
             setattr(device, field, value)
         device.updated_at_ms = now_ms()
@@ -156,14 +111,9 @@ class DeviceService:
 
     # MQTT 상태 반영 ---------------------------------------------------------
 
-    def apply_state(
-        self,
-        device_id: str,
-        *,
-        state: DeviceState | str | None = None,
-        connection_status: DeviceConnectionStatus | str | None = None,
-        updated_at_ms: int | None = None,
-    ) -> tuple[Device, bool]:
+    def apply_state(self, device_id: str, *, state: DeviceState | str | None = None,
+                    connection_status: DeviceConnectionStatus | str | None = None,
+                    updated_at_ms: int | None = None) -> tuple[Device, bool]:
         """커밋하지 않고 상태만 바꾼다. 값이 실제로 바뀌었는지도 돌려준다(다른 서비스와 한 번에 커밋할 때)."""
         device = self.get(device_id)
         before = (device.state, device.connection_status)
@@ -174,26 +124,14 @@ class DeviceService:
         device.state_updated_at_ms = updated_at_ms or now_ms()
         return device, (device.state, device.connection_status) != before
 
-    def update_state(
-        self, device_id: str, state: DeviceState | str, updated_at_ms: int | None = None
-    ) -> Device:
+    def update_state(self, device_id: str, state: DeviceState | str, updated_at_ms: int | None = None) -> Device:
         """MQTT state 수신 시 호출한다. 값이 바뀐 경우에만 이벤트를 보낸다."""
-        return self._commit(
-            *self.apply_state(device_id, state=state, updated_at_ms=updated_at_ms)
-        )
+        return self._commit(*self.apply_state(device_id, state=state, updated_at_ms=updated_at_ms))
 
-    def update_connection_status(
-        self,
-        device_id: str,
-        status: DeviceConnectionStatus | str,
-        timestamp_ms: int | None = None,
-    ) -> Device:
+    def update_connection_status(self, device_id: str, status: DeviceConnectionStatus | str,
+                                 timestamp_ms: int | None = None) -> Device:
         """MQTT status(LWT) 수신 시 호출한다."""
-        return self._commit(
-            *self.apply_state(
-                device_id, connection_status=status, updated_at_ms=timestamp_ms
-            )
-        )
+        return self._commit(*self.apply_state(device_id, connection_status=status, updated_at_ms=timestamp_ms))
 
     def publish_state(self, device: Device) -> None:
         if self.events is not None:
@@ -201,13 +139,69 @@ class DeviceService:
 
     def pointing_regions(self) -> list[DeviceRegion]:
         """의도 판단 모듈에 넘길 사용 중인 기기의 방향 영역."""
-        return [
-            DeviceRegion(device.device_id, device.min_angle_deg, device.max_angle_deg)
-            for device in self.devices.list(enabled=True)
-        ]
+        return [DeviceRegion(device.device_id, device.min_angle_deg, device.max_angle_deg)
+                for device in self.devices.list(enabled=True)]
 
     def _commit(self, device: Device, changed: bool) -> Device:
         self.session.commit()
         if changed:
             self.publish_state(device)
         return device
+
+
+# --- 제스처와 명령의 연결 관계를 관리한다(SAD 4.1 제스처·명령 매핑 모듈).
+
+MAPPABLE_GESTURES = (GestureType.THUMB_UP.value, GestureType.THUMB_DOWN.value, GestureType.HELP.value)
+DEFAULT_MAPPINGS = {
+    GestureType.THUMB_UP.value: IntentAction.ON.value,
+    GestureType.THUMB_DOWN.value: IntentAction.OFF.value,
+    GestureType.HELP.value: IntentAction.HELP.value,
+}
+
+
+def mapping_to_dict(mapping: GestureMapping) -> dict[str, Any]:
+    return {"gesture": mapping.gesture, "action": mapping.action, "enabled": mapping.enabled,
+            "updated_at_ms": mapping.updated_at_ms}
+
+
+class GestureMappingService:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.mappings = GestureMappingRepository(session)
+
+    def ensure_defaults(self) -> None:
+        timestamp = now_ms()
+        for gesture, action in DEFAULT_MAPPINGS.items():
+            if self.mappings.get(gesture) is None:
+                self.session.add(GestureMapping(gesture=gesture, action=action, enabled=True, updated_at_ms=timestamp))
+        self.session.commit()
+
+    def list(self) -> list[GestureMapping]:
+        return self.mappings.list()
+
+    def get(self, gesture: str) -> GestureMapping:
+        mapping = self.mappings.get(gesture)
+        if mapping is None:
+            raise web_error("MAPPING_NOT_FOUND")
+        return mapping
+
+    def update(self, gesture: str, changes: dict[str, Any]) -> GestureMapping:
+        mapping = self.get(gesture)
+        if "action" in changes:
+            mapping.action = IntentAction(changes["action"]).value
+        if "enabled" in changes:
+            mapping.enabled = bool(changes["enabled"])
+        active = [m.action for m in self.mappings.list() if m.enabled]
+        if len(active) != len(set(active)):
+            self.session.rollback()
+            raise web_error("MAPPING_CONFLICT")
+        mapping.updated_at_ms = now_ms()
+        self.session.commit()
+        return mapping
+
+    def action_for(self, gesture: GestureType | str) -> IntentAction | None:
+        """제스처에 연결된 명령. 매핑이 없거나 꺼져 있으면 None."""
+        mapping = self.mappings.get(GestureType(gesture).value)
+        if mapping is None or not mapping.enabled:
+            return None
+        return IntentAction(mapping.action)

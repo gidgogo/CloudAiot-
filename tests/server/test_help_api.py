@@ -4,6 +4,24 @@ import pytest
 
 from server.services.help_service import HelpService
 from shared.errors import InterfaceError
+from tests.server.test_auth_api import (  # noqa: F401 (pytest 공통 fixture)
+    ORIGIN,
+    PASSWORD,
+    TEST_SETTINGS,
+    anon,
+    app,
+    client,
+    device,
+    device_payload,
+    email_of,
+    events,
+    fast_bcrypt,
+    login,
+    login_response,
+    make_user,
+    room,
+    settings,
+)
 
 
 @pytest.fixture

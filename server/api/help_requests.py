@@ -6,23 +6,37 @@
 권한 규칙은 ``server/security/permissions.py``에 모여 있다.
 """
 
-from fastapi import APIRouter
+from __future__ import annotations
 
-from server.api.deps import HelpServiceDep, Limit, Offset, PrincipalDep
-from server.api.schemas import HelpRequestCreate, HelpRequestUpdate, ok
+from typing import Literal
+
+from fastapi import APIRouter
+from pydantic import Field
+
+from server.api import ID_PATTERN, HelpServiceDep, Limit, Offset, PrincipalDep, StrictModel, ok
 from server.db.models import HelpRequestRecord
 from server.security.permissions import Principal, help_request_owner
-from server.services.errors import web_error
+from server.services import web_error
 from server.services.help_service import HelpService, help_request_to_dict
 from shared.constants import API_PREFIX
 from shared.types import HelpSource, HelpStatus
 
+# --- x
+
+class HelpRequestCreate(StrictModel):
+    # USER는 생략(본인). ADMIN이 대신 만들 때만 지정한다.
+    user_id: str | None = Field(default=None, pattern=ID_PATTERN)
+    correlation_id: str | None = Field(default=None, pattern=ID_PATTERN)
+
+
+class HelpRequestUpdate(StrictModel):
+    status: Literal[HelpStatus.CONFIRMED, HelpStatus.COMPLETED]
+
+
 router = APIRouter(prefix=f"{API_PREFIX}/help-requests", tags=["help"])
 
 
-def _visible(
-    request_id: str, principal: Principal, service: HelpService
-) -> HelpRequestRecord:
+def _visible(request_id: str, principal: Principal, service: HelpService) -> HelpRequestRecord:
     record = service.get(request_id)
     if not principal.can_view_user(record.user_id):
         raise web_error("FORBIDDEN")
@@ -30,55 +44,28 @@ def _visible(
 
 
 @router.get("")
-def list_help_requests(
-    principal: PrincipalDep,
-    service: HelpServiceDep,
-    status: HelpStatus | None = None,
-    limit: Limit = 50,
-    offset: Offset = 0,
-) -> dict:
-    records, total = service.list(
-        status=status, user_ids=principal.visible_user_ids, limit=limit, offset=offset
-    )
-    return ok(
-        [help_request_to_dict(record) for record in records],
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+def list_help_requests(principal: PrincipalDep, service: HelpServiceDep, status: HelpStatus | None = None,
+                       limit: Limit = 50, offset: Offset = 0) -> dict:
+    records, total = service.list(status=status, user_ids=principal.visible_user_ids, limit=limit, offset=offset)
+    return ok([help_request_to_dict(record) for record in records], total=total, limit=limit, offset=offset)
 
 
 @router.post("", status_code=201)
-def create_help_request(
-    body: HelpRequestCreate, principal: PrincipalDep, service: HelpServiceDep
-) -> dict:
-    record = service.create(
-        user_id=help_request_owner(principal, body.user_id),
-        source=HelpSource.WEB,
-        correlation_id=body.correlation_id,
-    )
+def create_help_request(body: HelpRequestCreate, principal: PrincipalDep, service: HelpServiceDep) -> dict:
+    record = service.create(user_id=help_request_owner(principal, body.user_id), source=HelpSource.WEB,
+                            correlation_id=body.correlation_id)
     return ok(help_request_to_dict(record))
 
 
 @router.get("/{request_id}")
-def get_help_request(
-    request_id: str, principal: PrincipalDep, service: HelpServiceDep
-) -> dict:
+def get_help_request(request_id: str, principal: PrincipalDep, service: HelpServiceDep) -> dict:
     return ok(help_request_to_dict(_visible(request_id, principal, service)))
 
 
 @router.patch("/{request_id}")
-def update_help_request(
-    request_id: str,
-    body: HelpRequestUpdate,
-    principal: PrincipalDep,
-    service: HelpServiceDep,
-) -> dict:
+def update_help_request(request_id: str, body: HelpRequestUpdate, principal: PrincipalDep,
+                        service: HelpServiceDep) -> dict:
     record = _visible(request_id, principal, service)
     if not principal.can_change_help_status(record.user_id):
         raise web_error("FORBIDDEN")
-    return ok(
-        help_request_to_dict(
-            service.update_status(request_id, body.status, actor_id=principal.user_id)
-        )
-    )
+    return ok(help_request_to_dict(service.update_status(request_id, body.status, actor_id=principal.user_id)))

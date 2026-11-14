@@ -1,5 +1,5 @@
 -- CloudAIoT 최초 스키마 (PostgreSQL)
--- server/db/models.py에서 생성했다. 직접 고치지 말고 `python -m server.db.schema_sql`로 다시 만든다.
+-- server/db/models.py에서 생성했다. 직접 고치지 말고 `python -m server.db.models`로 다시 만든다.
 -- 시간 컬럼(*_ms)은 UTC Unix 밀리초다.
 
 CREATE TABLE gesture_mappings (

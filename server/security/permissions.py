@@ -11,14 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from server.services.errors import web_error
+from server.services import web_error
 from shared.types import UserRole
 
-USER, GUARDIAN, ADMIN = (
-    UserRole.USER.value,
-    UserRole.GUARDIAN.value,
-    UserRole.ADMIN.value,
-)
+USER, GUARDIAN, ADMIN = UserRole.USER.value, UserRole.GUARDIAN.value, UserRole.ADMIN.value
 
 
 @dataclass(frozen=True)
@@ -39,14 +35,10 @@ class Principal:
         return user_id == self.user_id or self.can_view_user(user_id)
 
     def can_change_help_status(self, request_user_id: str) -> bool:
-        return self.role == ADMIN or (
-            self.role == GUARDIAN and self.can_view_user(request_user_id)
-        )
+        return self.role == ADMIN or (self.role == GUARDIAN and self.can_view_user(request_user_id))
 
 
-def visible_user_ids(
-    user_id: str, role: str, linked_user_ids: list[str]
-) -> frozenset[str] | None:
+def visible_user_ids(user_id: str, role: str, linked_user_ids: list[str]) -> frozenset[str] | None:
     if role == ADMIN:
         return None
     if role == GUARDIAN:
@@ -67,8 +59,6 @@ def help_request_owner(principal: Principal, requested_user_id: str | None) -> s
         return principal.user_id
     if principal.role == ADMIN:
         if requested_user_id is None:
-            raise web_error(
-                "INVALID_SCHEMA", "user_id: 관리자는 요청할 사용자를 지정해야 합니다."
-            )
+            raise web_error("INVALID_SCHEMA", "user_id: 관리자는 요청할 사용자를 지정해야 합니다.")
         return requested_user_id
     raise web_error("FORBIDDEN")
