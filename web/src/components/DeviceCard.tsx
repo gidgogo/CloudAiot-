@@ -1,5 +1,11 @@
-import type { Device } from "../types";
-import { CONNECTION_LABEL, DEVICE_STATE_LABEL, deviceIcon, deviceTypeLabel, formatRelative } from "../utils/format";
+import {
+  CONNECTION_LABEL,
+  type Device,
+  DEVICE_STATE_LABEL,
+  deviceIcon,
+  deviceTypeLabel,
+  formatRelative,
+} from "../types";
 
 export function StateBadge({ state }: { state: Device["state"] }) {
   return <span className={`badge state-${state.toLowerCase()}`}>{DEVICE_STATE_LABEL[state]}</span>;

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { centerToRegion, regionToCenter } from "../components/PointingRegionEditor";
 import type { Device } from "../types";
-import { angleFromCenter, findOverlaps, isValidRegion, regionsOverlap, wedgePath } from "./geometry";
+import {
+  angleFromCenter,
+  centerToRegion,
+  findOverlaps,
+  isValidRegion,
+  regionsOverlap,
+  regionToCenter,
+  wedgePath,
+} from "./RoomMap";
+
+// 포인팅 방향 영역 계산(서버 device_matcher와 같은 기준) 테스트
 
 function device(id: string, min: number, max: number, enabled = true): Device {
   return {

@@ -49,15 +49,25 @@ npm run build       # dist/ 생성 (Docker에서는 Nginx가 제공)
 
 ```
 src/
-├── api/client.ts            # REST 호출. Cookie 인증, CSRF 헤더, 오류 코드 처리
-├── auth/AuthContext.tsx      # 로그인 상태, 만료 시 로그인 화면으로 이동
-├── realtime/RealtimeContext.tsx  # /ws/v1/events 연결과 이벤트 구독
-├── websocket/eventClient.ts  # 재연결(1~30초), 4401·4403 처리
-├── hooks/                    # 사용자·방·기기 목록, 비동기 조회
-├── components/               # 배치도, 방향 영역 편집기, 도움 요청 목록, 알림 등
-├── pages/                    # 화면
-└── utils/                    # 표시 문구, 각도 계산(서버 device_matcher와 같은 기준)
+├── pages/
+│   ├── LoginPage.tsx          # 로그인, 내 계정(비밀번호 변경)
+│   ├── DashboardPage.tsx      # 통합 현황, 제어 이력
+│   ├── RoomMappingPage.tsx    # 방·기기 위치·방향 영역 등록, 사용자·보호자·제스처 매핑 관리
+│   └── HelpRequestPage.tsx    # 도움 요청 확인
+├── components/
+│   ├── RoomMap.tsx            # 배치도, 방향 영역 편집기, 각도 계산(서버 device_matcher와 같은 기준)
+│   ├── DeviceCard.tsx         # 기기 정보 카드
+│   ├── DeviceStatus.tsx       # 제어 이력 표, 명령 결과 반영
+│   └── HelpRequestList.tsx    # 도움 요청 목록, 알림(토스트), 실행 훅, 도움 요청 실시간 알림
+├── api/client.ts              # REST 호출(Cookie 인증·CSRF·오류 코드), 로그인 상태, 조회 훅, 사용자·방·기기 목록
+├── websocket/eventClient.ts   # /ws/v1/events 재연결(1~30초)·4401·4403 처리, 이벤트 구독
+├── types/index.ts             # 공통 자료형, 표시 문구, 역할 권한
+├── App.tsx                    # 라우팅, 공통 레이아웃(메뉴)
+├── main.tsx
+└── index.css
 ```
+
+파일은 루트 README의 디렉토리 구조도(계획표)와 같습니다. 계획표에 없는 파일은 테스트(`*.test.ts`)와 Vite 기본 파일(`vite-env.d.ts`)뿐입니다.
 
 포인팅 각도는 카메라 영상 기준 `atan2(dy, dx)`로 오른쪽 0°, 아래 +90°, 위 -90°입니다.
 API·이벤트 형식은 `docs/api-spec.md`, `docs/websocket-spec.md`를 따릅니다.

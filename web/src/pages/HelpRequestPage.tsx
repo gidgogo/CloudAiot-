@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, errorMessage } from "../api/client";
-import { useSession } from "../auth/AuthContext";
-import { HelpRequestList } from "../components/HelpRequestList";
-import { useDirectory } from "../hooks/useDirectory";
-import { upsertHelpRequest, useHelpActions } from "../hooks/useHelpActions";
-import { useRealtimeEvent } from "../realtime/RealtimeContext";
-import type { HelpRequest, HelpStatus, PageMeta } from "../types";
-import { HELP_STATUS_LABEL } from "../utils/format";
+import { api, errorMessage, useDirectory, useSession } from "../api/client";
+import { HelpRequestList, upsertHelpRequest, useHelpActions } from "../components/HelpRequestList";
+import { HELP_STATUS_LABEL, type HelpRequest, type HelpStatus, type PageMeta } from "../types";
+import { useRealtimeEvent } from "../websocket/eventClient";
 
 const PAGE_SIZE = 20;
 type Tab = HelpStatus | "ALL";
