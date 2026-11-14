@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { AccountPage } from "./pages/AccountPage";
+import { AdminPage } from "./pages/AdminPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { HelpRequestPage } from "./pages/HelpRequestPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { RoomMappingPage } from "./pages/RoomMappingPage";
 import type { Role } from "./types";
 
 export interface PageRoute {
@@ -19,5 +21,7 @@ export const PAGES: PageRoute[] = [
   { path: "/", label: "대시보드", element: <DashboardPage /> },
   { path: "/help", label: "도움 요청", element: <HelpRequestPage /> },
   { path: "/history", label: "제어 이력", roles: ["GUARDIAN", "ADMIN"], element: <HistoryPage /> },
+  { path: "/mapping", label: "방·기기 설정", roles: ["ADMIN"], element: <RoomMappingPage /> },
+  { path: "/admin", label: "사용자·매핑 관리", roles: ["ADMIN"], element: <AdminPage /> },
   { path: "/account", element: <AccountPage /> },
 ];
