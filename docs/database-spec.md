@@ -8,7 +8,7 @@
   - Docker 예: `postgresql+psycopg://cloudaiot:비밀번호@postgres:5432/cloudaiot`
 - 서버 시작 시 없는 테이블을 만든다(`Base.metadata.create_all`). 기존 테이블은 바꾸지 않는다.
   모델을 바꾼 뒤에는 기존 개발 DB를 지우거나(`cloudaiot-dev.db`) 직접 ALTER 해야 한다.
-- 모델을 바꾸면 `python -m server.db.schema_sql`로 DDL을 다시 만든다(테스트가 최신 여부를 검사한다).
+- 모델을 바꾸면 `python -m server.db.models`로 DDL을 다시 만든다(테스트가 최신 여부를 검사한다).
 - 실제 PostgreSQL로 테스트: `TEST_DATABASE_URL=postgresql+psycopg://... python -m pytest tests/server`
   (테스트마다 테이블을 지우고 다시 만드므로 빈 테스트용 DB를 쓴다.)
 

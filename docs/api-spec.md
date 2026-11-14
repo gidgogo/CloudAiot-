@@ -54,7 +54,7 @@
 | 500 | `INTERNAL_ERROR` | 서버 내부 오류 |
 
 `DEVICE_NOT_FOUND`, `INVALID_SCHEMA`, `UNAUTHORIZED`, `FORBIDDEN`, `INTERNAL_ERROR`를 뺀 코드는 웹 서버 전용이다
-(`server/services/errors.py`). 공통 규격에 올릴지는 통합 담당자와 합의한다.
+(`server/services/__init__.py`). 공통 규격에 올릴지는 통합 담당자와 합의한다.
 
 ## 인증과 보안 (규격 8장)
 
