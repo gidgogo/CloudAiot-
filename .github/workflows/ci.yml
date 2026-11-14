@@ -34,3 +34,23 @@ jobs:
       - run: python -m edge.main --help
       - run: python -m scripts.local_demo --help
       - run: python -c "from server.app import app; from edge.config import load_config; assert load_config()['camera']; assert app.title"
+
+  web:
+    name: web (typecheck, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # TODO(통합 담당): 다른 액션처럼 커밋 SHA로 고정한다.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

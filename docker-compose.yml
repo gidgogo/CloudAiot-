@@ -4,7 +4,27 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports: ["${API_PORT:-8000}:8000"]
-    depends_on: [postgres, mosquitto]
+    environment:
+      # 비밀번호에 @ : / 같은 문자가 있으면 URL 인코딩해야 한다.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-cloudaiot}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cloudaiot}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRE_SECONDS: ${JWT_EXPIRE_SECONDS:-1800}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      CONTROL_EVENT_RETENTION_DAYS: ${CONTROL_EVENT_RETENTION_DAYS:-}
+      HELP_REQUEST_RETENTION_DAYS: ${HELP_REQUEST_RETENTION_DAYS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   nginx:
     build:
@@ -22,6 +42,11 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -33,4 +58,3 @@ services:
 volumes:
   postgres-data:
   mosquitto-data:
-
