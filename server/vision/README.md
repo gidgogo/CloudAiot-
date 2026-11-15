@@ -38,6 +38,21 @@ pipeline.close()  # 연결이 끝나면 호출
 - JPEG는 메모리에서만 디코딩하고 저장하지 않는다(규격 5.6).
 - `pointing_vector`는 `POINTING`일 때만 들어간다. 손이 작아 방향을 믿을 수 없으면 `UNKNOWN`으로 낸다.
 
+## 로컬 카메라로 확인
+
+`scripts/vision_camera_check.py`는 웹캠 프레임을 `GesturePipeline`에 넣고 결과를 화면에 겹쳐 보여 준다.
+모델 파일을 받은 뒤 저장소 루트에서 실행하며, `q`를 누르면 끝난다.
+
+```bash
+python -m pip install -e ".[vision]"
+python -m scripts.vision_camera_check            # 카메라가 여럿이면 --camera 1
+```
+
+- 화면에는 제스처, 사용자의 손(`LEFT`/`RIGHT`), 안정화 프레임 수와 유지 시간이 표시된다. `POINTING`이면 방향 화살표도 그린다.
+- 웹캠 원본은 좌우가 뒤집히지 않았다고 보고 `mirrored=false`로 넘긴다. 거울처럼 보이도록 미리보기 화면만 좌우를 뒤집는다.
+- JPEG 디코딩(`process_jpeg`)과 의도 엔진은 거치지 않는다. 손동작 판정과 안정화만 확인하는 용도다.
+- macOS에서는 터미널 앱에 카메라 권한을 허용해야 화면이 열린다.
+
 ## 판정 기준
 
 | 제스처 | 조건 |
