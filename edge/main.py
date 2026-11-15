@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -256,7 +257,15 @@ async def stream_frames(
         log.info("final metrics %s", metrics.snapshot())
 
 
+def _use_utf8_output() -> None:
+    """Windows 콘솔(cp1252 등)에서도 한글 도움말·로그가 깨지거나 UnicodeEncodeError로 죽지 않게 한다."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure") and (stream.encoding or "").lower() not in ("utf-8", "utf8"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> None:
+    _use_utf8_output()
     parser = argparse.ArgumentParser(description="CloudAIoT Raspberry Pi edge agent")
     parser.add_argument("--config", type=Path, help="설정 파일 경로 (기본: edge/config.yaml 또는 예제)")
     parser.add_argument("--check-camera", action="store_true", help="카메라 프레임 한 장을 읽어 확인")
