@@ -13,7 +13,7 @@ Topic·QoS·Retain (규격 11.5)
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import paho.mqtt.client as mqtt
 
@@ -52,6 +52,16 @@ class DeviceMqttAgent:
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
+        # 명령 처리 직후 호출된다. 송출 기기는 여기서 상태 LED를 맞춘다.
+        self.after_command: Callable[[], None] | None = None
+
+    def publish_state(self) -> None:
+        """명령이 아닌 경로(물리 버튼, 프로세스 종료)로 상태가 바뀌었을 때 state를 retain으로 발행한다."""
+        if not self.client.is_connected():
+            return  # 재접속하면 _on_connect가 현재 state를 다시 발행한다
+        self.client.publish(
+            state_topic(self.home_id, self.device_id), payload_of(self.handler.state_message()), qos=QOS, retain=True
+        )
 
     def start(self) -> None:
         # connect_async: 브로커가 아직 없어도 백그라운드에서 재시도한다
@@ -87,6 +97,8 @@ class DeviceMqttAgent:
             log.info("[%s] command %s -> %s", self.device_id, result.ack.command_id, result.ack.result.value)
         if result.state is not None:
             client.publish(state_topic(self.home_id, self.device_id), payload_of(result.state), qos=QOS, retain=True)
+        if self.after_command is not None:
+            self.after_command()
 
     def _status_payload(self, online: bool) -> str:
         status = DeviceConnectionStatus.ONLINE if online else DeviceConnectionStatus.OFFLINE

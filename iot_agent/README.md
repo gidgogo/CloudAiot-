@@ -102,6 +102,15 @@ sudo systemctl enable --now cloudaiot-iot
 - `command_handler.py`: cmd 검증·만료·중복·실행·ACK 생성 (MQTT와 분리, 단위 테스트 대상)
 - `mqtt_agent.py`: 기기 하나의 MQTT 연결, LWT, 구독·발행
 - `time_sync.py`: `timedatectl`로 NTP 동기화 확인
+- `stream_switch.py`: 영상 송출(`edge.main --stream`)을 기기처럼 ON/OFF 하는 `ProcessSwitch`
+- `panel.py`: 송출 시작/정지 버튼과 상태 LED
+- `send_command.py`: 서버·웹 대신 ON/OFF 명령을 보내고 ACK를 확인하는 개발용 도구
+
+## 영상 송출 버튼·LED·원격 제어
+
+`type: edge_stream` 기기를 추가하면 송출을 물리 버튼, LED, MQTT로 켜고 끌 수 있습니다.
+배선, 설정, systemd 등록 방법은 [docs/edge-stream-control.md](../docs/edge-stream-control.md)를 참고하세요.
+systemd 등록은 위 예시 대신 `bash deploy/systemd/install-iot-agent.sh`를 쓰면 현재 사용자와 경로로 자동 생성됩니다.
 
 ## 남은 일 / 합의 필요
 

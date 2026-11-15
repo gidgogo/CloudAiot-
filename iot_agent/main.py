@@ -14,10 +14,14 @@ from pathlib import Path
 from iot_agent.command_handler import CommandHandler
 from iot_agent.config import load_config
 from iot_agent.mqtt_agent import DeviceMqttAgent
+from iot_agent.panel import GpioButton, LogIndicator, StreamPanel, gpio_led
 from iot_agent.relay import build_relays
+from iot_agent.stream_switch import ProcessSwitch
 from iot_agent.time_sync import NtpSyncChecker
 
 log = logging.getLogger("iot_agent")
+
+POLL_SEC = 0.5  # 송출 프로세스가 스스로 죽었는지 확인하는 주기
 
 
 def run(config_path: Path | None = None, *, mock: bool = False) -> None:
@@ -41,6 +45,8 @@ def run(config_path: Path | None = None, *, mock: bool = False) -> None:
         for device_id, relay in relays.items()
     ]
 
+    panels, buttons = build_panels(config["devices"], relays, agents, mock=mock)
+
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):  # systemd stop은 SIGTERM
         signal.signal(sig, lambda *_: stop.set())
@@ -49,13 +55,39 @@ def run(config_path: Path | None = None, *, mock: bool = False) -> None:
         agent.start()
     log.info("controlling %s (home_id=%s)", ", ".join(relays), agent_cfg["home_id"])
     try:
-        stop.wait()
+        while not stop.wait(POLL_SEC):
+            for panel in panels:
+                panel.poll()
     finally:
+        for button in buttons:
+            button.close()
         for agent in agents:
             agent.stop()
         for relay in relays.values():
             relay.close()
+        for panel in panels:
+            panel.close()
         log.info("stopped")
+
+
+def build_panels(devices_cfg: dict, relays: dict, agents: list[DeviceMqttAgent], *, mock: bool) -> tuple[list, list]:
+    """edge_stream 기기마다 상태 LED와 버튼을 붙인다. 핀을 안 적으면 LED는 로그로 대신하고 버튼은 없다."""
+    panels: list[StreamPanel] = []
+    buttons: list[GpioButton] = []
+    for agent in agents:
+        spec = devices_cfg[agent.device_id]
+        switch = relays[agent.device_id]
+        if spec.get("type") != "edge_stream" or not isinstance(switch, ProcessSwitch):
+            continue
+        led_pin, button_pin = spec.get("led_pin"), spec.get("button_pin")
+        led = gpio_led(int(led_pin)) if led_pin is not None and not mock else LogIndicator(agent.device_id)
+        panel = StreamPanel(switch, led, agent.publish_state)
+        agent.after_command = panel.after_command
+        panels.append(panel)
+        if button_pin is not None and not mock:
+            buttons.append(GpioButton(int(button_pin), panel.press))
+            log.info("[%s] button on GPIO%s, LED on GPIO%s", agent.device_id, button_pin, led_pin)
+    return panels, buttons
 
 
 def main() -> None:

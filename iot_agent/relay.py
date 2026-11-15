@@ -60,7 +60,15 @@ def build_relays(devices_cfg: dict[str, dict[str, Any]], *, mock: bool = False) 
     relays: dict[str, Relay] = {}
     for device_id, spec in devices_cfg.items():
         initial_on = str(spec.get("initial_state", "OFF")).upper() == "ON"
-        if mock:
+        if spec.get("type") == "edge_stream":
+            # 송출 스위치는 GPIO가 아니라 프로세스라서 mock이어도 실제로 띄운다(카메라만 synthetic).
+            from iot_agent.stream_switch import ProcessSwitch, default_stream_command
+
+            switch = ProcessSwitch(device_id, spec.get("command") or default_stream_command(mock=mock))
+            if initial_on:
+                switch.set(True)
+            relays[device_id] = switch
+        elif mock:
             relays[device_id] = MockRelay(device_id, initial_on)
         elif spec.get("type", "gpio_relay") == "gpio_relay":
             relays[device_id] = GpioRelay(
