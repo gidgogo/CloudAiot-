@@ -108,8 +108,15 @@ EDGE_TOKEN=dev-token EDGE_SERVER_URL=ws://localhost:8000 python -m edge.main --s
 python -m pytest tests edge/tests
 ```
 
+## 송출 버튼·LED (`stream_control/`)
+
+`python -m edge.stream_control.main`을 systemd로 상시 실행하면, 물리 버튼으로 송출(`edge.main --stream`)을 켜고 끄고 LED로 상태를 보여 준다.
+송출 프로세스가 꺼져 있거나 카메라 오류로 죽어도 버튼·LED는 살아 있도록 두 프로세스로 나눴다.
+설정은 `edge/config.yaml`의 `stream_control` 절, 배선과 등록은 [docs/edge-stream-control.md](../docs/edge-stream-control.md)를 참고한다.
+MQTT 원격 ON/OFF는 선택이며 기본으로 꺼져 있다.
+
 ## 남은 작업
 
 - 실제 Raspberry Pi에서 `--check-camera --source picamera2`(또는 `opencv`) 확인 후, 카메라에서 FPS, 인코딩 시간, 지연 측정 후 `jpeg_quality`·해상도 결정
 - AI 서버의 `/ws/v1/frames` 수신부와 통합 테스트 (서버 담당과 협의)
-- 운영 환경 `wss://` 인증서 설정, systemd 서비스 등록
+- 운영 환경 `wss://` 인증서 설정

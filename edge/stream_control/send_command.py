@@ -3,8 +3,8 @@
 서버가 보내는 것과 같은 규격(공통 인터페이스 11.2)으로 발행하므로, 웹 대시보드가 붙기 전에
 "원격으로 송출 켜기/끄기"를 확인할 수 있다.
 
-    python -m iot_agent.send_command edge-stream-01 ON  --host <브로커 주소>
-    python -m iot_agent.send_command edge-stream-01 OFF --host <브로커 주소>
+    python -m edge.stream_control.send_command edge-stream-01 ON  --host <브로커 주소>
+    python -m edge.stream_control.send_command edge-stream-01 OFF --host <브로커 주소>
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def main() -> None:
     ack = send(args.host, args.port, args.home_id, args.device_id, IntentAction(args.action),
                username=args.username, password=args.password)
     if ack is None:
-        print(f"ACK 없음: {ack_topic(args.home_id, args.device_id)} 를 확인하세요 (에이전트 실행 여부, 브로커 주소)")
+        print(f"ACK 없음: {ack_topic(args.home_id, args.device_id)} 를 확인하세요 (송출 제어 실행 여부, remote.enabled, 브로커 주소)")
         sys.exit(1)
     print(f"ACK {ack['result']} state={ack['state']} error={ack.get('error_code')}")
     print(f"현재 상태는 {state_topic(args.home_id, args.device_id)} (retain) 에서도 확인할 수 있습니다.")

@@ -28,7 +28,6 @@ config/config.yaml
 
 edge/config.yaml
 server/config.yaml
-iot_agent/config.yaml
 web/node_modules/
 web/dist/
 firmware/.pio/

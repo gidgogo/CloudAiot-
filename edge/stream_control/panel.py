@@ -5,8 +5,8 @@
     LED 꺼짐       → 정지
     LED 빠른 깜빡임 → 송출 프로세스가 스스로 종료됨(카메라·설정 오류). 버튼을 다시 누르면 재시작
 
-버튼으로 상태가 바뀌면 MQTT state Topic에도 발행해 서버·웹이 같은 상태를 보게 한다.
-웹(MQTT cmd)으로 바뀐 상태도 같은 LED에 반영된다.
+원격 제어(MQTT)를 켠 경우, 버튼으로 바뀐 상태를 state Topic에도 발행해 서버·웹이 같은 상태를 보게 하고
+원격 명령으로 바뀐 상태도 같은 LED에 반영한다.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Callable, Protocol
 
-from iot_agent.stream_switch import ProcessSwitch
+from edge.stream_control.switch import ProcessSwitch
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class Indicator(Protocol):
 
 
 class LogIndicator:
-    """LED가 없거나 --mock일 때 상태 변화를 로그로만 남긴다."""
+    """LED 핀이 없거나 --mock일 때 상태 변화를 로그로만 남긴다."""
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -51,7 +51,7 @@ class LogIndicator:
 
 
 class StreamPanel:
-    """스위치 상태를 LED에 반영하고, 버튼·MQTT 어느 쪽으로 바뀌든 state를 한 번만 발행한다."""
+    """스위치 상태를 LED에 반영하고, 버튼·원격 어느 쪽으로 바뀌든 state를 한 번만 발행한다."""
 
     def __init__(
         self,

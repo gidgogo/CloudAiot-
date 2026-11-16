@@ -1,2 +1,0 @@
-# 저장소 루트에서: python -m pip install -r iot_agent/requirements.txt
--e .[iot]

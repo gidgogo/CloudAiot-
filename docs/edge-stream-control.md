@@ -3,7 +3,7 @@
 SSH로 접속하지 않고도 라즈베리파이의 영상 송출(`edge.main --stream`)을 켜고 끄는 방법을 정리한다.
 
 ```
-                         ┌───────────── iot_agent (systemd, 부팅 시 자동 실행) ─────────────┐
+                         ┌──────── edge.stream_control (systemd, 부팅 시 자동 실행) ────────┐
 [버튼 GPIO26] ──누름──▶  │  StreamPanel ──toggle──▶ ProcessSwitch ──▶ python -m edge.main  │──WebSocket──▶ AI 서버
 [LED  GPIO22] ◀─상태──   │      ▲                        ▲                                  │
                          │      └──── LED 동기화 ─── CommandHandler ◀── MQTT cmd            │
@@ -51,23 +51,22 @@ GPIO26 [37]──[버튼]──[39] GND               (풀업 내장, 외부 저
 ## 3. 설정
 
 ```bash
-cp iot_agent/config.example.yaml iot_agent/config.yaml
+cp edge/config.example.yaml edge/config.yaml
 ```
 
-`iot_agent/config.yaml`에서 실제로 쓰는 기기만 남긴다. 릴레이가 없으면 `light-01`과 `fan-01`은 지운다.
+`edge/config.yaml`의 `stream_control` 절을 수정한다. 송출 설정(서버 주소, 토큰, 카메라)과 같은 파일이다.
 
 ```yaml
-mqtt:
-  host: <브로커 주소>   # 같은 네트워크면 맥 이름(예: my-mac.local)도 가능
-devices:
-  edge-stream-01:
-    type: edge_stream
-    button_pin: 26
-    led_pin: 22
-    initial_state: OFF    # ON이면 부팅하자마자 송출
+stream_control:
+  device_id: edge-stream-01
+  button_pin: 26
+  led_pin: 22
+  initial_state: OFF    # ON이면 부팅하자마자 송출
+  remote:
+    enabled: false      # MQTT 원격 ON/OFF. 5장 참고
 ```
 
-송출 설정(서버 주소, 토큰, 카메라)은 기존과 같이 `edge/config.yaml`이나 환경변수를 따른다. 비밀값은 저장소 루트의 `.env`에 둔다. 이 파일은 `.gitignore` 대상이다.
+송출 설정(서버 주소, 토큰, 카메라)은 `edge/config.yaml`이나 환경변수를 따른다. 비밀값은 저장소 루트의 `.env`에 둔다. 이 파일은 `.gitignore` 대상이다.
 
 ```bash
 # ~/CloudAiot-/.env
@@ -79,24 +78,30 @@ EDGE_CAMERA_SOURCE=picamera2
 ## 4. 부팅 시 자동 실행 (systemd)
 
 ```bash
-pip install "paho-mqtt>=2.0,<3"            # 가상환경 안에서 (gpiozero/lgpio는 시스템 패키지 사용)
-bash deploy/systemd/install-iot-agent.sh   # cloudaiot-iot 서비스 등록 + 시작
+bash deploy/systemd/install-edge-stream-control.sh   # cloudaiot-edge 서비스 등록 + 시작 (gpiozero/lgpio는 시스템 패키지 사용)
 ```
 
 | 명령 | 용도 |
 |---|---|
-| `systemctl status cloudaiot-iot` | 상태 확인 |
-| `journalctl -u cloudaiot-iot -f` | 실시간 로그 (송출 로그도 여기에 함께 나온다) |
-| `sudo systemctl restart cloudaiot-iot` | 설정을 바꾼 뒤 재시작 |
-| `sudo systemctl disable --now cloudaiot-iot` | 자동 실행 해제 |
+| `systemctl status cloudaiot-edge` | 상태 확인 |
+| `journalctl -u cloudaiot-edge -f` | 실시간 로그 (송출 로그도 여기에 함께 나온다) |
+| `sudo systemctl restart cloudaiot-edge` | 설정을 바꾼 뒤 재시작 |
+| `sudo systemctl disable --now cloudaiot-edge` | 자동 실행 해제 |
 
-## 5. 원격 제어 (MQTT)
+## 5. 원격 제어 (MQTT, 선택)
+
+기본값은 꺼져 있다(`stream_control.remote.enabled: false`). 켜면 송출을 MQTT 기기 하나(`edge-stream-01`)처럼
+`ON`/`OFF` 명령으로 제어한다. 필요한 패키지는 `paho-mqtt`이며(`pip install -e ".[edge-control]"`), 브로커 주소는
+`remote.mqtt.host` 또는 `EDGE_MQTT_HOST`로 정한다.
+
+> **합의 필요**: 이 기기를 웹에 일반 기기로 등록하면 제스처로 카메라가 꺼질 수 있다. 원격 ON/OFF를 일반 기기 Topic과
+> 분리할지, 기기 종류로 제스처 대상에서 제외할지 서버·웹 담당과 정한 뒤 켠다.
 
 웹 대시보드가 붙기 전에는 `send_command`로 서버와 같은 명령을 보내 확인한다.
 
 ```bash
-python -m iot_agent.send_command edge-stream-01 ON  --host <브로커 주소>
-python -m iot_agent.send_command edge-stream-01 OFF --host <브로커 주소>
+python -m edge.stream_control.send_command edge-stream-01 ON  --host <브로커 주소>
+python -m edge.stream_control.send_command edge-stream-01 OFF --host <브로커 주소>
 ```
 
 로컬 브로커는 `docker compose up -d mosquitto`로 띄운다.
@@ -120,7 +125,8 @@ python -m iot_agent.send_command edge-stream-01 OFF --host <브로커 주소>
 - 원격 `ON` → ACK `OK` → 송출 시작, 약 9fps, ACK 타임아웃 0 → LED 핀(GPIO22) HIGH
 - 원격 `OFF` → ACK `OK` → 송출 프로세스가 정상 종료(final metrics 출력) → LED LOW
 - `state`(OFF)와 `status`(ONLINE)가 retain으로 남는 것을 확인했다.
-- 버튼 입력은 실제 부품 없이 단위 테스트(`tests/iot_agent/test_stream_control.py`)로만 확인했다.
+- 버튼 입력은 실제 부품 없이 단위 테스트(`tests/edge/stream_control/test_switch_panel.py`)로만 확인했다.
+- 위 기록은 `iot_agent/`에 있던 시점의 코드로 확인했다. `edge/stream_control/`로 옮긴 뒤에는 Pi 실물 시험을 다시 해야 한다.
 
 ---
 

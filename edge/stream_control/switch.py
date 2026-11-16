@@ -1,7 +1,6 @@
 """영상 송출(edge.main --stream)을 켜고 끄는 스위치.
 
-릴레이(``relay.Relay``)와 같은 인터페이스(is_on, set, close)라서 MQTT 명령 처리(CommandHandler)를
-그대로 재사용한다. ON이면 송출 프로세스를 자식 프로세스로 띄우고, OFF면 Ctrl+C(SIGINT)로 정리 종료한다.
+``command_handler.Switch`` 인터페이스(is_on, set)를 따르므로 MQTT 원격 명령(CommandHandler)으로도 켜고 끌 수 있다. ON이면 송출 프로세스를 자식 프로세스로 띄우고, OFF면 Ctrl+C(SIGINT)로 정리 종료한다.
 
 송출 프로세스가 스스로 죽으면(카메라 오류, 설정 오류 등) 다시 띄우지 않고 ``crashed``로 표시한다.
 같은 오류로 무한 재시작하는 것보다 LED로 알리고 사람이 다시 켜게 하는 편이 안전하다.
@@ -20,12 +19,12 @@ from typing import Any, Callable, Sequence
 
 log = logging.getLogger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_STOP_TIMEOUT_SEC = 8.0
 
 
 def default_stream_command(*, mock: bool = False) -> list[str]:
-    """에이전트와 같은 파이썬(가상환경)으로 송출을 실행한다. mock이면 카메라 없이 테스트 패턴을 보낸다."""
+    """제어 프로세스와 같은 파이썬(가상환경)으로 송출을 실행한다. mock이면 카메라 없이 테스트 패턴을 보낸다."""
     command = [sys.executable, "-m", "edge.main", "--stream"]
     if mock:
         command += ["--source", "synthetic"]
