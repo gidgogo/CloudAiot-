@@ -18,6 +18,9 @@ docker compose up -d --build
 - 데모 데이터는 api 컨테이너에서 `docker compose exec api python -m scripts.seed_demo_data --password 비밀번호`로 넣는다.
 - 웹 주소를 바꾸면 `.env`의 `ALLOWED_ORIGINS`도 바꾼다. HTTPS로 운영하면 `COOKIE_SECURE=true`.
 - `POSTGRES_PASSWORD`에 `@ : /` 같은 문자가 있으면 `DATABASE_URL`에 들어가므로 URL 인코딩이 필요하다.
+- **api는 워커 1개로 실행한다**(`server/Dockerfile`의 uvicorn 기본값). 웹 실시간 이벤트 허브(`EventHub`)가 api 프로세스 메모리에 있어서,
+  MQTT 수신·의도 판단 결과 처리와 WebSocket(`/ws/v1/events`)이 같은 프로세스에 있어야 웹으로 이벤트가 전달된다.
+  `--workers`를 늘리거나 MQTT 처리를 별도 컨테이너로 나누려면 Redis 등 프로세스 간 이벤트 전달을 먼저 추가해야 한다.
 
 ## 설정 파일
 

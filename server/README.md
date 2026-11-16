@@ -16,6 +16,7 @@ python -m uvicorn server.app:app --reload --host 127.0.0.1
 
 API 문서는 <http://127.0.0.1:8000/docs>에서 확인합니다. `DATABASE_URL`이 없으면 `./cloudaiot-dev.db`(SQLite)를 씁니다.
 설정 환경변수는 `server/config.py`(`Settings`)와 루트 `.env.example`에 정리되어 있습니다.
+실시간 이벤트 허브가 프로세스 메모리에 있으므로 uvicorn은 워커 1개(기본값)로 실행합니다(`--workers` 금지, `deploy/README.md` 참고).
 
 영상 분석 모듈을 개발할 때 추가 의존성을 설치합니다.
 
