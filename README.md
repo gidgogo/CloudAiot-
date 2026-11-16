@@ -27,7 +27,8 @@ CloudAiot-/
 │   ├── websocket_client.py                    # 서버 전송 및 자동 재접속
 │   ├── metrics.py                             # FPS와 영상 전송 지연 측정
 │   ├── config.py                              # 엣지 설정 파일 로딩
-│   ├── config.example.yaml                    # 카메라·서버 연결 설정 예시
+│   ├── config.example.yaml                    # 카메라·서버 연결·송출 제어 설정 예시
+│   ├── stream_control/                        # 송출 버튼·LED (선택: MQTT 원격 ON/OFF), systemd 상시 실행
 │   ├── requirements.txt                       # 엣지 Python 라이브러리
 │   └── README.md                              # Raspberry Pi 설치·실행 안내
 │
@@ -132,7 +133,6 @@ CloudAiot-/
 │   ├── .dockerignore                          # 웹 이미지 제외 파일
 │   └── README.md                              # 웹 설치·실행 안내
 │
-├── iot_agent/                                 # [통합 담당] ESP32 대신 Raspberry Pi로 릴레이 제어 (같은 MQTT 규격)
 ├── firmware/                                  # [통합 담당] ESP32 펌웨어
 │   ├── src/
 │   │   ├── main.cpp                           # 펌웨어 실행 진입점
@@ -282,7 +282,6 @@ CloudAiot-/
 | `server/security/` | JWT 로그인과 역할별 접근 권한을 관리한다. |
 | `web/` | 방·기기 매핑, 상태 확인, 도움 요청 기능을 제공한다. |
 | `firmware/` | ESP32가 MQTT 명령을 받아 릴레이를 제어하도록 한다. |
-| `iot_agent/` | ESP32 대신 Raspberry Pi가 같은 MQTT 규격으로 릴레이를 제어한다. 둘 중 하나를 사용한다. |
 | `shared/` | 파트 간 데이터 형식과 MQTT Topic 규칙을 관리한다. |
 | `deploy/` | Nginx·Mosquitto·PostgreSQL의 실행 설정을 관리한다. |
 | `tests/` | 단위·규격·통합·전체 흐름 테스트를 관리한다. |
@@ -300,7 +299,7 @@ docker-compose.yml
 └── mosquitto                     # MQTT 명령·ACK·상태 중계
 ```
 
-Raspberry Pi의 `edge/`·`iot_agent/`와 ESP32의 `firmware/`는 Docker 컨테이너로 실행하지 않는다.
+Raspberry Pi의 `edge/`와 ESP32의 `firmware/`는 Docker 컨테이너로 실행하지 않는다.
 
 ```
 Raspberry Pi

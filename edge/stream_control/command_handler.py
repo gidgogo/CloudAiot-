@@ -1,11 +1,11 @@
-"""MQTT cmd 페이로드를 검증·실행하고 ACK를 만든다. MQTT 연결과 분리해 단위 테스트할 수 있게 했다.
+"""송출 원격 ON/OFF용 MQTT cmd 페이로드를 검증·실행하고 ACK를 만든다. MQTT 연결과 분리해 단위 테스트할 수 있게 했다.
 
 공통 인터페이스 v1 11장 처리 순서:
 1. 형식·버전 검사 → 실패 시 ERROR ACK (command_id를 알 수 없으면 ACK 없이 폐기)
-2. 시간 동기화 확인 (11.7) → 미동기화면 ERROR ACK, 릴레이 동작 안 함
+2. 시간 동기화 확인 (11.7) → 미동기화면 ERROR ACK, 송출 상태 변경 안 함
 3. 유효시간 확인 (11.5) → expires_at_ms 경과 시 EXPIRED ACK
-4. 중복 확인 (11.6) → 이미 처리한 command_id면 DUPLICATE ACK, 릴레이 재동작 금지
-5. 릴레이 동작 → command_id 저장 → OK ACK
+4. 중복 확인 (11.6) → 이미 처리한 command_id면 DUPLICATE ACK, 재실행 금지
+5. 송출 켜기/끄기 → command_id 저장 → OK ACK
 """
 from __future__ import annotations
 
@@ -13,12 +13,10 @@ import json
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 
 from shared.constants import SCHEMA_VERSION
 from shared.types import AckResult, DeviceState, DeviceStateMessage, IntentAction, MqttAck, now_ms
-
-from iot_agent.relay import Relay
 
 log = logging.getLogger(__name__)
 
@@ -32,8 +30,16 @@ ERR_DEVICE_NOT_FOUND = "DEVICE_NOT_FOUND"
 ERR_COMMAND_EXPIRED = "COMMAND_EXPIRED"
 ERR_COMMAND_DUPLICATE = "COMMAND_DUPLICATE"
 ERR_INTERNAL = "INTERNAL_ERROR"
-# 규격 12.2에 없는 코드. 통합 담당과 합의 필요 (iot_agent/README.md 참고)
+# 규격 12.2에 없는 코드. 통합 담당과 합의 필요 (docs/edge-stream-control.md 참고)
 ERR_TIME_NOT_SYNCED = "TIME_NOT_SYNCED"
+
+class Switch(Protocol):
+    """켜고 끌 수 있는 대상. 실제로는 송출 프로세스 스위치(``switch.ProcessSwitch``)다."""
+
+    @property
+    def is_on(self) -> bool: ...
+    def set(self, on: bool) -> None: ...
+
 
 _REQUIRED = ("command_id", "device_id", "action", "issued_at_ms", "expires_at_ms")
 
@@ -48,21 +54,21 @@ class CommandHandler:
     def __init__(
         self,
         device_id: str,
-        relay: Relay,
+        switch: Switch,
         *,
         time_synced: Callable[[], bool] = lambda: True,
         clock_ms: Callable[[], int] = now_ms,
         dedup_capacity: int = DEDUP_CAPACITY,
     ) -> None:
         self.device_id = device_id
-        self.relay = relay
+        self.switch = switch
         self._time_synced = time_synced
         self._clock_ms = clock_ms
         self._seen: OrderedDict[str, None] = OrderedDict()
         self._dedup_capacity = dedup_capacity
 
     def current_state(self) -> DeviceState:
-        return DeviceState.ON if self.relay.is_on else DeviceState.OFF
+        return DeviceState.ON if self.switch.is_on else DeviceState.OFF
 
     def state_message(self) -> DeviceStateMessage:
         return DeviceStateMessage(device_id=self.device_id, state=self.current_state(), updated_at_ms=self._clock_ms())
@@ -123,16 +129,16 @@ class CommandHandler:
             return ack(AckResult.DUPLICATE, ERR_COMMAND_DUPLICATE)
 
         # 5. 실행
-        before = self.relay.is_on
+        before = self.switch.is_on
         try:
-            self.relay.set(action is IntentAction.ON)
-        except Exception:  # GPIO 오류 등. 원인은 로그로 남기고 서버에는 ERROR로 알린다.
-            log.exception("relay %s failed for command %s", self.device_id, command_id)
+            self.switch.set(action is IntentAction.ON)
+        except Exception:  # 프로세스 시작 실패 등. 원인은 로그로 남기고 서버에는 ERROR로 알린다.
+            log.exception("switch %s failed for command %s", self.device_id, command_id)
             self._remember(command_id)
             return ack(AckResult.ERROR, ERR_INTERNAL)
         self._remember(command_id)
         result = ack(AckResult.OK)
-        if self.relay.is_on != before:
+        if self.switch.is_on != before:
             result.state = self.state_message()
         return result
 

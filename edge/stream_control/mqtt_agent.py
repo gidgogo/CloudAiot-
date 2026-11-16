@@ -1,7 +1,6 @@
-"""기기 하나당 MQTT 연결 하나를 맺어 cmd를 구독하고 ack·state·status를 발행한다.
+"""송출 원격 ON/OFF용 MQTT 연결. cmd를 구독하고 ack·state·status를 발행한다.
 
-기기마다 연결을 나누는 이유: LWT(유언 메시지)는 연결당 1개만 등록할 수 있는데,
-규격 11.8은 기기마다 ``aiot/v1/{home_id}/{device_id}/status``에 OFFLINE을 남기도록 정했다.
+LWT(유언 메시지)로 ``aiot/v1/{home_id}/{device_id}/status``에 OFFLINE을 남긴다(규격 11.8).
 
 Topic·QoS·Retain (규격 11.5)
 - cmd    구독  QoS 1
@@ -20,7 +19,7 @@ import paho.mqtt.client as mqtt
 from shared.mqtt_topics import ack_topic, command_topic, state_topic, status_topic
 from shared.types import DeviceConnectionStatus, DeviceStatusMessage
 
-from iot_agent.command_handler import CommandHandler, payload_of
+from edge.stream_control.command_handler import CommandHandler, payload_of
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ class DeviceMqttAgent:
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = self._on_message
-        # 명령 처리 직후 호출된다. 송출 기기는 여기서 상태 LED를 맞춘다.
+        # 명령 처리 직후 호출된다. 여기서 상태 LED를 맞춘다.
         self.after_command: Callable[[], None] | None = None
 
     def publish_state(self) -> None:

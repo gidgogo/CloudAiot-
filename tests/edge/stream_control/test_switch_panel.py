@@ -4,11 +4,13 @@ import signal
 import subprocess
 import sys
 
-from iot_agent.command_handler import CommandHandler
-from iot_agent.mqtt_agent import DeviceMqttAgent
-from iot_agent.panel import StreamPanel
-from iot_agent.relay import build_relays
-from iot_agent.stream_switch import ProcessSwitch
+import pytest
+
+from edge.stream_control.command_handler import CommandHandler
+from edge.stream_control.mqtt_agent import DeviceMqttAgent
+from edge.stream_control.panel import StreamPanel
+from edge.stream_control.main import stream_control_settings
+from edge.stream_control.switch import ProcessSwitch, default_stream_command
 from shared.types import IntentAction, MqttCommand, now_ms
 
 
@@ -190,8 +192,30 @@ def test_publish_state_sends_retained_state():
     assert agent.client.published[0][1]["state"] == "OFF" and agent.client.published[0][3] is True
 
 
-def test_build_relays_creates_stream_switch_with_default_command():
-    relays = build_relays({"edge-stream-01": {"type": "edge_stream"}}, mock=True)
-    switch = relays["edge-stream-01"]
-    assert isinstance(switch, ProcessSwitch) and not switch.is_on
-    assert switch.command == [sys.executable, "-m", "edge.main", "--stream", "--source", "synthetic"]
+def test_default_stream_command_uses_same_python():
+    assert default_stream_command() == [sys.executable, "-m", "edge.main", "--stream"]
+    assert default_stream_command(mock=True)[-2:] == ["--source", "synthetic"]
+
+
+def test_initial_state_accepts_yaml_booleans():
+    # YAML 1.1은 따옴표 없는 ON/OFF를 True/False로 읽는다
+    assert stream_control_settings({"stream_control": {"initial_state": True}})["initial_on"] is True
+    assert stream_control_settings({"stream_control": {"initial_state": "ON"}})["initial_on"] is True
+    assert stream_control_settings({"stream_control": {"initial_state": False}})["initial_on"] is False
+
+
+def test_settings_default_to_no_remote_and_no_gpio():
+    settings = stream_control_settings({})
+    assert settings["device_id"] == "edge-stream-01"
+    assert settings["button_pin"] is None and settings["led_pin"] is None
+    assert settings["remote"] == {"enabled": False}
+
+
+def test_remote_settings_require_home_id_and_prefer_env(monkeypatch):
+    with pytest.raises(ValueError):
+        stream_control_settings({"stream_control": {"remote": {"enabled": True}}})
+    monkeypatch.setenv("EDGE_MQTT_HOST", "broker.local")
+    settings = stream_control_settings(
+        {"stream_control": {"remote": {"enabled": True, "home_id": "home-01", "mqtt": {"host": "localhost"}}}}
+    )
+    assert settings["remote"]["mqtt"]["host"] == "broker.local"
