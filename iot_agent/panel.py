@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Callable, Protocol
 
 from iot_agent.stream_switch import ProcessSwitch
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 
 BLINK_ON_SEC = BLINK_OFF_SEC = 0.15
 BUTTON_BOUNCE_SEC = 0.05
+PRESS_COOLDOWN_SEC = 1.0  # 한 번 처리한 뒤 이 시간 안의 입력은 같은 누름(접점 떨림)으로 본다
 
 
 class Indicator(Protocol):
@@ -51,19 +53,42 @@ class LogIndicator:
 class StreamPanel:
     """스위치 상태를 LED에 반영하고, 버튼·MQTT 어느 쪽으로 바뀌든 state를 한 번만 발행한다."""
 
-    def __init__(self, switch: ProcessSwitch, led: Indicator, publish_state: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        switch: ProcessSwitch,
+        led: Indicator,
+        publish_state: Callable[[], None],
+        *,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.switch = switch
         self.led = led
         self._publish_state = publish_state
+        self._clock = clock
+        self._press_lock = threading.Lock()
+        self._last_press_done = float("-inf")
         self._lock = threading.Lock()
         self._shown: tuple[bool, bool] | None = None  # (is_on, crashed) 마지막으로 LED에 반영한 값
         self.sync(publish=False)
 
     def press(self) -> None:
-        """버튼 콜백 (gpiozero 스레드)."""
-        on = self.switch.toggle()
-        log.info("[%s] button -> stream %s", self.switch.name, "ON" if on else "OFF")
-        self.sync(publish=True)
+        """버튼 콜백 (gpiozero 스레드).
+
+        송출을 멈추는 데 1초 가까이 걸리는 동안 버튼 접점 떨림(bounce)이 쌓였다가 연달아 들어오면
+        ON/OFF가 여러 번 뒤집힌다. 처리 중에 들어온 입력과, 처리 직후 PRESS_COOLDOWN_SEC 안에
+        들어온 입력은 같은 누름으로 보고 버린다.
+        """
+        if not self._press_lock.acquire(blocking=False):
+            return
+        try:
+            if self._clock() - self._last_press_done < PRESS_COOLDOWN_SEC:
+                return
+            on = self.switch.toggle()
+            log.info("[%s] button -> stream %s", self.switch.name, "ON" if on else "OFF")
+            self.sync(publish=True)
+        finally:
+            self._last_press_done = self._clock()
+            self._press_lock.release()
 
     def after_command(self) -> None:
         """MQTT 명령 처리 직후. state는 CommandHandler 쪽에서 이미 발행했으므로 LED만 맞춘다."""
