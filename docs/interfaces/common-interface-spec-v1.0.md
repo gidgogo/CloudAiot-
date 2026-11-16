@@ -107,6 +107,7 @@ v1 규격은 수정하지 않고 유지한다. 호환되지 않는 변경이 필
 shared/schemas/
 ├── v1/
 │   ├── frame-metadata.schema.json
+│   ├── frame-ack.schema.json
 │   ├── gesture-result.schema.json
 │   ├── intent-result.schema.json
 │   ├── mqtt-command.schema.json
@@ -856,6 +857,7 @@ Mosquitto는 LWT 메시지를 `status` Topic에 Retain으로 발행한다.
 | 인터페이스 | 기준 파일 |
 | --- | --- |
 | Edge 프레임 메타데이터 | `shared/schemas/v1/frame-metadata.schema.json` |
+| Edge 프레임 ACK | `shared/schemas/v1/frame-ack.schema.json` |
 | 손동작 인식 결과 | `shared/schemas/v1/gesture-result.schema.json` |
 | 최종 의도 결과 | `shared/schemas/v1/intent-result.schema.json` |
 | MQTT 명령 | `shared/schemas/v1/mqtt-command.schema.json` |

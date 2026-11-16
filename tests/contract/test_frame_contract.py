@@ -12,7 +12,7 @@ import pytest
 from shared.constants import FRAME_ACK_STATUSES, SCHEMA_VERSION
 from shared.types import FrameAck, FrameMetadata
 
-SCHEMAS = Path(__file__).resolve().parents[2] / "shared" / "schemas"
+SCHEMAS = Path(__file__).resolve().parents[2] / "shared" / "schemas" / "v1"
 
 
 def schema(name):
