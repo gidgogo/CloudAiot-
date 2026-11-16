@@ -35,3 +35,6 @@ firmware/include/secrets.h
 deploy/mosquitto/passwd
 postgres-data/
 mosquitto-data/
+
+# 협업용 더미 송출 영상 (얼굴이 나올 수 있어 커밋 금지)
+samples/
