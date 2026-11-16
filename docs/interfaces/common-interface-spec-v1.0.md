@@ -352,6 +352,10 @@ AI 담당 A는 다음 형식으로 AI 담당 B의 의도 판단 모듈에 결과
 - `CONFIRMED`
 - `CANCELLED`
 
+`PENDING`과 `CANCELLED`에서는 `action`을 생략하거나 `null`로 전송한다. 수신자는
+`status == CONFIRMED`인 경우에만 `action`을 해석한다. `PENDING`은 대상 선택 진행 상태이며,
+`CANCELLED`는 기기 제어 명령을 생성하지 않는다.
+
 HELP 의도는 특정 기기를 대상으로 하지 않는다.
 
 ```

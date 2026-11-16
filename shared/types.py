@@ -126,6 +126,13 @@ class GestureResult(Message):
     hold_time_ms: int = 0
     detected_at_ms: int = field(default_factory=now_ms)
 
+    def as_dict(self) -> dict[str, Any]:
+        """Serialize only the v1 contract fields; legacy demo fields stay local."""
+        payload = Message.as_dict(self)
+        for name in ("name", "confidence", "timestamp"):
+            payload.pop(name)
+        return payload
+
 @dataclass(slots=True)
 class IntentResult(Message):
     intent_id: str = field(default_factory=new_id)
