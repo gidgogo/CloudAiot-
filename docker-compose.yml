@@ -15,6 +15,14 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       CONTROL_EVENT_RETENTION_DAYS: ${CONTROL_EVENT_RETENTION_DAYS:-}
       HELP_REQUEST_RETENTION_DAYS: ${HELP_REQUEST_RETENTION_DAYS:-}
+      EDGE_TOKEN: ${EDGE_TOKEN:-change-me}
+      MQTT_ENABLED: ${MQTT_ENABLED:-true}
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_PORT: 1883
+      MQTT_HOME_ID: ${MQTT_HOME_ID:-home-01}
+      MQTT_TLS: ${MQTT_TLS:-false}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

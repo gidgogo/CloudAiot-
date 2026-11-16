@@ -19,10 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server.api import auth, control_events, devices, health, help_requests, rooms, websocket
+from server.api import auth, control_events, devices, frames, health, help_requests, rooms, websocket
 from server.api.websocket import EventHub
 from server.config import Settings
 from server.db.session import Database, bootstrap
+from server.integration_pipeline import FrameSessionProcessor, IntentDispatcher
+from server.iot.mqtt_client import MqttBridge
 from server.security.authentication import LoginRateLimiter
 from server.security.jwt import CSRF_HEADER
 from server.services import web_error
@@ -52,6 +54,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await asyncio.to_thread(bootstrap, db, settings)
+        mqtt_bridge = _app.state.mqtt_bridge
+        if mqtt_bridge is not None:
+            await asyncio.to_thread(mqtt_bridge.connect)
         retention = None
         if settings.control_event_retention_days or settings.help_request_retention_days:
             retention = asyncio.create_task(_retention_loop(db, settings))
@@ -60,12 +65,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             retention.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await retention
+        if mqtt_bridge is not None:
+            await asyncio.to_thread(mqtt_bridge.close)
         db.dispose()
 
     application = FastAPI(title="CloudAIoT API", version="1.0", lifespan=lifespan)
     application.state.settings = settings
     application.state.db = db
     application.state.events = EventHub()
+    application.state.mqtt_bridge = (
+        MqttBridge(
+            db,
+            application.state.events,
+            host=settings.mqtt_host,
+            port=settings.mqtt_port,
+            home_id=settings.mqtt_home_id,
+            tls=settings.mqtt_tls,
+            username=settings.mqtt_username,
+            password=settings.mqtt_password,
+        )
+        if settings.mqtt_enabled else None
+    )
+    dispatcher = IntentDispatcher(db, application.state.events, application.state.mqtt_bridge)
+    application.state.frame_processor_factory = lambda: FrameSessionProcessor(db, dispatcher)
     application.state.login_limiter = LoginRateLimiter(settings.login_max_attempts, settings.login_lock_seconds)
     if settings.allowed_origins:
         # 프런트엔드와 API 주소가 다를 때만 쓰인다. Cookie 인증이라 "*"는 쓰지 않는다(규격 8.3).
@@ -76,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for router in (health.router, auth.router, auth.users_router, rooms.router, devices.router,
                    devices.mappings_router, control_events.router, help_requests.router, websocket.router):
         application.include_router(router)
+    application.include_router(frames.router)
     return application
 
 

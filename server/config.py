@@ -60,6 +60,14 @@ class Settings:
     retention_interval_seconds: int = 3600
     login_max_attempts: int = 5
     login_lock_seconds: int = 300
+    edge_token: str = ""
+    mqtt_enabled: bool = False
+    mqtt_host: str = "localhost"
+    mqtt_port: int = 1883
+    mqtt_tls: bool = False
+    mqtt_username: str | None = None
+    mqtt_password: str | None = field(default=None, repr=False)
+    mqtt_home_id: str = "home-01"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -77,6 +85,14 @@ class Settings:
             admin_name=env.get("ADMIN_NAME") or "관리자",
             control_event_retention_days=_int(env.get("CONTROL_EVENT_RETENTION_DAYS"), None),
             help_request_retention_days=_int(env.get("HELP_REQUEST_RETENTION_DAYS"), None),
+            edge_token=env.get("EDGE_TOKEN", ""),
+            mqtt_enabled=_bool(env.get("MQTT_ENABLED")),
+            mqtt_host=env.get("MQTT_HOST") or "localhost",
+            mqtt_port=_int(env.get("MQTT_PORT"), 1883) or 1883,
+            mqtt_tls=_bool(env.get("MQTT_TLS")),
+            mqtt_username=env.get("MQTT_USERNAME") or None,
+            mqtt_password=env.get("MQTT_PASSWORD") or None,
+            mqtt_home_id=env.get("MQTT_HOME_ID") or "home-01",
         )
 
     def resolved(self) -> Settings:
