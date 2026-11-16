@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import numpy as np
 
@@ -11,6 +13,7 @@ from server.vision.landmark_processor import Landmark
 
 DEFAULT_MODEL_PATH = Path(__file__).with_name("models") / "hand_landmarker.task"
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
+MODEL_DOWNLOAD_TIMEOUT_SEC = 30
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,8 +59,7 @@ class HandDetector:
 
 
 def _create_landmarker(model_path: Path, min_detection_confidence: float, min_tracking_confidence: float) -> Any:
-    if not model_path.is_file():
-        raise FileNotFoundError(f"hand landmarker model not found at {model_path}; download it from {MODEL_URL}")
+    _ensure_model_file(model_path)
     from mediapipe.tasks.python.core.base_options import BaseOptions
     from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 
@@ -69,3 +71,28 @@ def _create_landmarker(model_path: Path, min_detection_confidence: float, min_tr
         min_tracking_confidence=min_tracking_confidence,
     )
     return HandLandmarker.create_from_options(options)
+
+
+def _ensure_model_file(model_path: Path) -> None:
+    """Download the fixed MediaPipe model once when the local file is absent.
+
+    The model is written to a sibling temporary file and only replaces the target after a
+    successful, non-empty download, so interrupted bootstrap attempts cannot leave a corrupt model.
+    """
+    if model_path.is_file():
+        return
+
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = model_path.with_suffix(f"{model_path.suffix}.download")
+    try:
+        with urlopen(MODEL_URL, timeout=MODEL_DOWNLOAD_TIMEOUT_SEC) as response, temporary_path.open("wb") as output:
+            while chunk := response.read(1024 * 1024):
+                output.write(chunk)
+        if temporary_path.stat().st_size == 0:
+            raise OSError("downloaded model is empty")
+        temporary_path.replace(model_path)
+    except (OSError, URLError) as exc:
+        temporary_path.unlink(missing_ok=True)
+        raise FileNotFoundError(
+            f"hand landmarker model could not be downloaded to {model_path} from {MODEL_URL}"
+        ) from exc

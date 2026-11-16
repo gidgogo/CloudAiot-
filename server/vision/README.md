@@ -6,13 +6,12 @@ Edge가 보낸 프레임(규격 5.4)에서 손을 찾아 `GestureResult`(규격 
 ## 준비
 
 `pyproject.toml` 범위에서 설치되는 최신 MediaPipe(0.10.35에서 확인)에는 `mp.solutions`가 없다.
-그래서 Tasks API의 Hand Landmarker를 사용하며, 모델 파일을 따로 받아야 한다.
-모델은 저장소에 올리지 않는다(`models/.gitignore`).
+그래서 Tasks API의 Hand Landmarker를 사용한다. 모델은 저장소에 올리지 않는다
+(`models/.gitignore`). `GesturePipeline()`을 처음 만들 때 모델 파일이 없으면 공식 MediaPipe
+URL에서 자동으로 내려받는다. 다운로드는 한 번만 수행되며, 실패한 내려받기 파일은 남기지 않는다.
 
-```bash
-curl -L -o server/vision/models/hand_landmarker.task \
-  https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
-```
+인터넷이 차단된 환경에서는 사전에 모델 파일을
+`server/vision/models/hand_landmarker.task`에 배치해야 한다.
 
 ## 사용법
 

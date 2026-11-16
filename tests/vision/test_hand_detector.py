@@ -1,11 +1,13 @@
 """손 랜드마크 검출 테스트. MediaPipe 모델 대신 가짜 landmarker를 사용한다."""
 
+from io import BytesIO
 from types import SimpleNamespace
+from urllib.error import URLError
 
 import numpy as np
 import pytest
 
-from server.vision.hand_detector import HandDetector
+from server.vision.hand_detector import HandDetector, _ensure_model_file
 
 FRAME = np.zeros((480, 640, 3), dtype=np.uint8)
 
@@ -53,6 +55,33 @@ def test_close_releases_the_landmarker():
     assert landmarker.closed
 
 
-def test_missing_model_file_explains_where_to_download(tmp_path):
-    with pytest.raises(FileNotFoundError, match="download"):
-        HandDetector(tmp_path / "missing.task")
+def test_missing_model_is_downloaded_once(tmp_path, monkeypatch):
+    model_path = tmp_path / "models" / "hand_landmarker.task"
+    downloads = []
+
+    def fake_urlopen(url, timeout):
+        downloads.append((url, timeout))
+        return BytesIO(b"model-bytes")
+
+    monkeypatch.setattr("server.vision.hand_detector.urlopen", fake_urlopen)
+
+    _ensure_model_file(model_path)
+    _ensure_model_file(model_path)
+
+    assert model_path.read_bytes() == b"model-bytes"
+    assert len(downloads) == 1
+
+
+def test_failed_model_download_leaves_no_partial_file(tmp_path, monkeypatch):
+    model_path = tmp_path / "models" / "hand_landmarker.task"
+
+    def fail_urlopen(url, timeout):
+        raise URLError("offline")
+
+    monkeypatch.setattr("server.vision.hand_detector.urlopen", fail_urlopen)
+
+    with pytest.raises(FileNotFoundError, match="could not be downloaded"):
+        _ensure_model_file(model_path)
+
+    assert not model_path.exists()
+    assert not model_path.with_suffix(".task.download").exists()
