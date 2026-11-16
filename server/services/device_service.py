@@ -3,6 +3,7 @@
 방향 영역(pointing_region)은 AI 의도 판단 모듈의 ``device_matcher``와 같은 기준을 쓴다.
 각도는 화면 좌표 기준 ``atan2(dy, dx)``이며 오른쪽 0°, 아래 +90°, 위 -90°이다.
 ``min_angle_deg <= 각도 <= max_angle_deg``이면 해당 기기 영역으로 본다.
+min > max는 ±180°(왼쪽)를 넘어 이어지는 범위다(예: 170 → -170은 170~180과 -180~-170).
 """
 
 from __future__ import annotations
@@ -56,8 +57,9 @@ def _validate_geometry(values: Mapping[str, float]) -> None:
     """API를 거치지 않고 서비스를 직접 부르는 경우까지 같은 범위를 지킨다."""
     if not (MAP_MIN <= values["map_x"] <= MAP_MAX and MAP_MIN <= values["map_y"] <= MAP_MAX):
         raise web_error("INVALID_SCHEMA", "map_position은 0.0~1.0 범위여야 합니다.")
-    if not (ANGLE_MIN <= values["min_angle_deg"] < values["max_angle_deg"] <= ANGLE_MAX):
-        raise web_error("INVALID_SCHEMA", "pointing_region은 -180~180 범위에서 min_angle_deg < max_angle_deg여야 합니다.")
+    low, high = values["min_angle_deg"], values["max_angle_deg"]
+    if not (ANGLE_MIN <= low <= ANGLE_MAX and ANGLE_MIN <= high <= ANGLE_MAX and low != high):
+        raise web_error("INVALID_SCHEMA", "pointing_region은 -180~180 범위의 서로 다른 두 각도여야 합니다.")
 
 
 class DeviceService:

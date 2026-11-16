@@ -62,7 +62,7 @@
 | `room_id` | FK rooms (RESTRICT) | 기기가 있는 방은 삭제 불가 |
 | `name`, `device_type` | VARCHAR | |
 | `map_x`, `map_y` | FLOAT | 웹 배치도 위치 0.0~1.0 |
-| `min_angle_deg`, `max_angle_deg` | FLOAT | 포인팅 판정 범위 -180~180 |
+| `min_angle_deg`, `max_angle_deg` | FLOAT | 포인팅 판정 범위 -180~180. min > max면 ±180°를 넘는 범위 |
 | `enabled` | BOOLEAN | 비활성 기기는 포인팅 대상에서 제외 |
 | `state` | VARCHAR(16) | `ON` / `OFF` / `UNKNOWN` (MQTT state·ACK) |
 | `connection_status` | VARCHAR(16) | `ONLINE` / `OFFLINE` (MQTT status·LWT) |

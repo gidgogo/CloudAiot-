@@ -44,6 +44,13 @@ describe("overlaps", () => {
     expect(regionsOverlap({ min_angle_deg: 0, max_angle_deg: 10 }, { min_angle_deg: 11, max_angle_deg: 20 })).toBe(false);
   });
 
+  it("handles regions that wrap across ±180° (min > max)", () => {
+    const left = { min_angle_deg: 170, max_angle_deg: -170 };
+    expect(regionsOverlap(left, { min_angle_deg: 175, max_angle_deg: 180 })).toBe(true);
+    expect(regionsOverlap(left, { min_angle_deg: -175, max_angle_deg: -160 })).toBe(true);
+    expect(regionsOverlap(left, { min_angle_deg: 0, max_angle_deg: 10 })).toBe(false);
+  });
+
   it("ignores disabled devices", () => {
     const pairs = findOverlaps([device("a", 0, 30), device("b", 20, 40), device("c", 25, 35, false)]);
     expect(pairs.map(([a, b]) => `${a.device_id}-${b.device_id}`)).toEqual(["a-b"]);
@@ -54,13 +61,15 @@ describe("region helpers", () => {
   it("converts between min/max and center/tolerance", () => {
     expect(regionToCenter({ min_angle_deg: -20, max_angle_deg: 20 })).toEqual({ center: 0, tolerance: 20 });
     expect(centerToRegion(-90, 25)).toEqual({ min_angle_deg: -115, max_angle_deg: -65 });
-    expect(centerToRegion(170, 20)).toEqual({ min_angle_deg: 150, max_angle_deg: 180 });
+    expect(centerToRegion(170, 20)).toEqual({ min_angle_deg: 150, max_angle_deg: -170 });
+    expect(regionToCenter({ min_angle_deg: 170, max_angle_deg: -170 })).toEqual({ center: 180, tolerance: 10 });
   });
 
   it("validates regions like the server", () => {
     expect(isValidRegion({ min_angle_deg: -15, max_angle_deg: 15 })).toBe(true);
     expect(isValidRegion({ min_angle_deg: 15, max_angle_deg: 15 })).toBe(false);
     expect(isValidRegion({ min_angle_deg: -200, max_angle_deg: 0 })).toBe(false);
+    expect(isValidRegion({ min_angle_deg: 170, max_angle_deg: -170 })).toBe(true);
   });
 
   it("draws a wedge path", () => {

@@ -148,7 +148,7 @@ export function RoomMappingPage() {
     event.preventDefault();
     if (!draft) return;
     if (!isValidRegion(draft.pointing_region)) {
-      push({ tone: "warning", title: "방향 영역을 확인하세요", message: "-180~180 범위에서 최소 각도가 최대 각도보다 작아야 합니다." });
+      push({ tone: "warning", title: "방향 영역을 확인하세요", message: "-180~180 범위에서 최소·최대 각도가 달라야 합니다. 최소가 더 크면 왼쪽(±180°)을 넘어가는 범위입니다." });
       return;
     }
     const { device_id, ...fields } = draft;

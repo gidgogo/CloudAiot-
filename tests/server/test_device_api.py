@@ -103,7 +103,7 @@ def test_patch_device_updates_only_sent_fields(client, device):
 
 def test_device_validation_errors(client, room, device_payload):
     cases = [
-        {**device_payload, "pointing_region": {"min_angle_deg": 20, "max_angle_deg": 10}},
+        {**device_payload, "pointing_region": {"min_angle_deg": 20, "max_angle_deg": 20}},
         {**device_payload, "pointing_region": {"min_angle_deg": -200, "max_angle_deg": 10}},
         {**device_payload, "map_position": {"x": 1.2, "y": 0.5}},
         {**device_payload, "device_type": "fan"},
@@ -113,6 +113,14 @@ def test_device_validation_errors(client, room, device_payload):
         response = client.post("/api/v1/devices", json=payload)
         assert response.status_code == 422, payload
         assert error_code(response) == "INVALID_SCHEMA"
+
+
+def test_pointing_region_can_wrap_across_180(client, room, device_payload):
+    # 카메라 바로 왼쪽처럼 ±180°를 넘는 범위는 min > max로 보낸다(AI 의도 판단 모듈과 같은 규칙).
+    region = {"min_angle_deg": 170.0, "max_angle_deg": -170.0}
+    response = client.post("/api/v1/devices", json={**device_payload, "pointing_region": region})
+    assert response.status_code == 201, response.text
+    assert response.json()["data"]["pointing_region"] == region
 
 
 def test_device_reference_errors(client, device, device_payload):

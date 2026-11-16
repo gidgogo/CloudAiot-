@@ -101,14 +101,36 @@ export function polarPoint(cx: number, cy: number, radius: number, angleDeg: num
   return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) };
 }
 
+/** 각도를 (-180, 180] 범위로 맞춘다. 서버 device_matcher.normalize_angle_deg와 같다. */
+export function normalizeAngle(angle: number): number {
+  const shifted = (((angle + 180) % 360) + 360) % 360;
+  return shifted === 0 ? 180 : shifted - 180;
+}
+
+/** 영역의 폭(도). min > max면 ±180°(왼쪽)를 넘어 이어지는 범위다(예: 170 → -170은 20°). */
+export function regionSpan(region: PointingRegion): number {
+  const span = region.max_angle_deg - region.min_angle_deg;
+  return span >= 0 ? span : span + 360;
+}
+
+/** 영역을 겹치지 않는 구간으로 나눈다. ±180°를 넘는 영역은 [min, 180]과 [-180, max] 두 구간이다. */
+function segments(region: PointingRegion): [number, number][] {
+  return region.min_angle_deg <= region.max_angle_deg
+    ? [[region.min_angle_deg, region.max_angle_deg]]
+    : [
+        [region.min_angle_deg, 180],
+        [-180, region.max_angle_deg],
+      ];
+}
+
 /** 중심에서 min→max 각도로 펼쳐진 부채꼴 SVG 경로. 각도가 커지는 방향은 화면에서 시계 방향이다. */
 export function wedgePath(cx: number, cy: number, radius: number, region: PointingRegion): string {
-  const span = region.max_angle_deg - region.min_angle_deg;
+  const span = regionSpan(region);
   if (span >= 360) {
     return `M ${cx - radius} ${cy} a ${radius} ${radius} 0 1 1 ${radius * 2} 0 a ${radius} ${radius} 0 1 1 ${-radius * 2} 0 Z`;
   }
   const start = polarPoint(cx, cy, radius, region.min_angle_deg);
-  const end = polarPoint(cx, cy, radius, region.max_angle_deg);
+  const end = polarPoint(cx, cy, radius, region.min_angle_deg + span);
   const largeArc = span > 180 ? 1 : 0;
   const f = (n: number) => n.toFixed(2);
   return `M ${f(cx)} ${f(cy)} L ${f(start.x)} ${f(start.y)} A ${radius} ${radius} 0 ${largeArc} 1 ${f(end.x)} ${f(end.y)} Z`;
@@ -116,7 +138,7 @@ export function wedgePath(cx: number, cy: number, radius: number, region: Pointi
 
 /** 두 영역이 한 각도라도 겹치면 true. 서버 매칭은 양 끝을 포함(<=)한다. */
 export function regionsOverlap(a: PointingRegion, b: PointingRegion): boolean {
-  return a.min_angle_deg <= b.max_angle_deg && b.min_angle_deg <= a.max_angle_deg;
+  return segments(a).some(([aMin, aMax]) => segments(b).some(([bMin, bMax]) => aMin <= bMax && bMin <= aMax));
 }
 
 /** 사용 중인 기기끼리 방향 영역이 겹치는 쌍. 겹치면 서버는 대상을 정하지 못하고 명령을 취소한다. */
@@ -141,8 +163,10 @@ export function isValidRegion(region: PointingRegion): boolean {
     Number.isFinite(region.min_angle_deg) &&
     Number.isFinite(region.max_angle_deg) &&
     region.min_angle_deg >= -180 &&
+    region.min_angle_deg <= 180 &&
+    region.max_angle_deg >= -180 &&
     region.max_angle_deg <= 180 &&
-    region.min_angle_deg < region.max_angle_deg
+    region.min_angle_deg !== region.max_angle_deg
   );
 }
 
@@ -155,16 +179,18 @@ const CY = HEIGHT / 2;
 const RADIUS = 88;
 
 export function regionToCenter(region: PointingRegion): { center: number; tolerance: number } {
+  const span = regionSpan(region);
   return {
-    center: round((region.min_angle_deg + region.max_angle_deg) / 2, 1),
-    tolerance: round((region.max_angle_deg - region.min_angle_deg) / 2, 1),
+    center: round(normalizeAngle(region.min_angle_deg + span / 2), 1),
+    tolerance: round(span / 2, 1),
   };
 }
 
+/** 중심±허용 범위. ±180°를 넘으면 min > max인 영역이 된다(예: 170±20 → 150 ~ -170). */
 export function centerToRegion(center: number, tolerance: number): PointingRegion {
   return {
-    min_angle_deg: round(clamp(center - tolerance, -180, 180), 1),
-    max_angle_deg: round(clamp(center + tolerance, -180, 180), 1),
+    min_angle_deg: round(normalizeAngle(center - tolerance), 1),
+    max_angle_deg: round(normalizeAngle(center + tolerance), 1),
   };
 }
 
@@ -219,7 +245,7 @@ export function PointingRegionEditor({ others, region, onChange, label = "이 �
           </path>
         ))}
         {others.map((device) => {
-          const mid = (device.pointing_region.min_angle_deg + device.pointing_region.max_angle_deg) / 2;
+          const mid = regionToCenter(device.pointing_region).center;
           const point = polarPoint(CX, CY, RADIUS * 0.7, mid);
           return (
             <text key={`${device.device_id}-label`} x={point.x} y={point.y} textAnchor="middle" className="region-other-label">

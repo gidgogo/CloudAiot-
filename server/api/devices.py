@@ -34,8 +34,9 @@ class PointingRegion(StrictModel):
 
     @model_validator(mode="after")
     def _check_order(self):
-        if self.min_angle_deg >= self.max_angle_deg:
-            raise ValueError("min_angle_deg는 max_angle_deg보다 작아야 합니다.")
+        # min > max는 ±180°(왼쪽)를 넘어 이어지는 범위다(예: 170 → -170). 같은 값만 막는다.
+        if self.min_angle_deg == self.max_angle_deg:
+            raise ValueError("min_angle_deg와 max_angle_deg는 달라야 합니다.")
         return self
 
 

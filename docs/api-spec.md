@@ -163,7 +163,7 @@ JWT는 응답 본문에 넣지 않는다. CORS는 `ALLOWED_ORIGINS`에 적힌 �
 | `device_id` | MQTT Topic `aiot/v1/{home_id}/{device_id}/...`의 `device_id`와 같은 값 |
 | `device_type` | 영문 대문자로 시작, 대문자·숫자·`_` (웹 선택지: `LIGHT`, `FAN`, `TV`, `AIR_CONDITIONER`, `HEATER`, `OUTLET`, `OTHER`) |
 | `map_position` | 웹 배치도 위치. `x`, `y` 모두 0.0~1.0 |
-| `pointing_region` | 포인팅 판정 범위. -180~180, `min_angle_deg < max_angle_deg` |
+| `pointing_region` | 포인팅 판정 범위. -180~180, 두 값은 달라야 함. `min_angle_deg > max_angle_deg`면 ±180°(왼쪽)를 넘는 범위(예: 170 → -170) |
 
 `pointing_region` 각도는 AI 의도 판단 모듈(`server/intent/device_matcher.py`)과 같은 기준이다.
 카메라 영상 좌표에서 `atan2(dy, dx)`로 계산하며 오른쪽 0°, 아래 +90°, 위 -90°, 왼쪽 ±180°이다.
