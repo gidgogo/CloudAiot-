@@ -27,7 +27,8 @@ CloudAiot-/
 │   ├── websocket_client.py                    # 서버 전송 및 자동 재접속
 │   ├── metrics.py                             # FPS와 영상 전송 지연 측정
 │   ├── config.py                              # 엣지 설정 파일 로딩
-│   ├── config.example.yaml                    # 카메라·서버 연결 설정 예시
+│   ├── config.example.yaml                    # 카메라·서버 연결·송출 제어 설정 예시
+│   ├── stream_control/                        # 송출 버튼·LED (선택: MQTT 원격 ON/OFF), systemd 상시 실행
 │   ├── requirements.txt                       # 엣지 Python 라이브러리
 │   └── README.md                              # Raspberry Pi 설치·실행 안내
 │
