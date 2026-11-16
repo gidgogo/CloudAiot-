@@ -133,19 +133,13 @@ CloudAiot-/
 │   ├── .dockerignore                          # 웹 이미지 제외 파일
 │   └── README.md                              # 웹 설치·실행 안내
 │
-├── firmware/                                  # [통합 담당] ESP32 펌웨어
-│   ├── src/
-│   │   ├── main.cpp                           # 펌웨어 실행 진입점
-│   │   ├── mqtt_handler.cpp                   # MQTT 명령·ACK 처리
-│   │   └── relay_controller.cpp               # 릴레이 ON/OFF 제어
-│   │
-│   ├── include/
-│   │   ├── mqtt_handler.h                     # MQTT 모듈 선언
-│   │   ├── relay_controller.h                 # 릴레이 모듈 선언
-│   │   └── config.example.h                   # Wi-Fi·MQTT 설정 예시
-│   │
-│   ├── platformio.ini                         # ESP32 빌드 환경 설정
-│   └── README.md                              # 펌웨어 설치·업로드 안내
+├── pi_led_agent/                              # [통합 담당] Raspberry Pi MQTT LED agent
+│   ├── main.py                                # Agent 실행 진입점
+│   ├── mqtt_client.py                         # MQTT 명령·ACK·state·status 처리
+│   ├── command_handler.py                     # 명령 검증·만료·중복 방지
+│   ├── led_controller.py                      # GPIO LED ON/OFF 제어
+│   ├── config.py                              # 환경변수 설정 로드
+│   └── .env.example                           # Pi MQTT·GPIO 설정 예시
 │
 ├── shared/                                    # [통합 담당] 공통 인터페이스
 │   ├── __init__.py                            # shared Python 패키지 선언
@@ -266,7 +260,7 @@ CloudAiot-/
 | AI 담당 A | `server/vision/`, `tests/vision/` | MediaPipe Hands, 랜드마크, 포인팅, 제스처 판정 |  |
 | AI 담당 B | `server/intent/`, `tests/intent/` | 기기 매칭, 상태머신, 의도 확정, 안전 취소, 지연 측정 |  |
 | 웹·응용 서버 담당 | `server/api/`, `server/services/`, `server/db/`, `server/security/`, `web/`, `tests/server/` | FastAPI, React, PostgreSQL, 로그인, 방·기기·도움 요청 관리 |  |
-| 인터페이스·통합 담당 | `server/iot/`, `firmware/`, `shared/`, `deploy/`, 통합 테스트 | MQTT, ESP32, 공통 규격, Docker, Nginx, Mosquitto, 전체 통합 |  |
+| 인터페이스·통합 담당 | `server/iot/`, `pi_led_agent/`, `shared/`, `deploy/`, 통합 테스트 | MQTT, Raspberry Pi LED, 공통 규격, Docker, Nginx, Mosquitto, 전체 통합 |  |
 
 ### 핵심 디렉토리 설명
 
@@ -275,13 +269,13 @@ CloudAiot-/
 | `edge/` | Raspberry Pi에서 영상을 수집·인코딩하고 AI 서버로 전송한다. |
 | `server/vision/` | 손 랜드마크를 검출하고 포인팅과 제스처를 판정한다. |
 | `server/intent/` | 포인팅 대상과 명령 제스처를 조합하여 최종 의도를 결정한다. |
-| `server/iot/` | MQTT 명령을 발행하고 ESP32의 ACK와 상태를 처리한다. |
+| `server/iot/` | MQTT 명령을 발행하고 Raspberry Pi LED agent의 ACK와 상태를 처리한다. |
 | `server/api/` | 웹에서 사용하는 REST API와 WebSocket을 제공한다. |
 | `server/services/` | 방·기기·사용자·도움 요청의 응용 로직을 처리한다. |
 | `server/db/` | PostgreSQL 연결과 데이터 저장을 관리한다. |
 | `server/security/` | JWT 로그인과 역할별 접근 권한을 관리한다. |
 | `web/` | 방·기기 매핑, 상태 확인, 도움 요청 기능을 제공한다. |
-| `firmware/` | ESP32가 MQTT 명령을 받아 릴레이를 제어하도록 한다. |
+| `pi_led_agent/` | Raspberry Pi가 MQTT 명령을 받아 GPIO의 저전압 LED를 제어한다. |
 | `shared/` | 파트 간 데이터 형식과 MQTT Topic 규칙을 관리한다. |
 | `deploy/` | Nginx·Mosquitto·PostgreSQL의 실행 설정을 관리한다. |
 | `tests/` | 단위·규격·통합·전체 흐름 테스트를 관리한다. |
@@ -299,13 +293,13 @@ docker-compose.yml
 └── mosquitto                     # MQTT 명령·ACK·상태 중계
 ```
 
-Raspberry Pi의 `edge/`와 ESP32의 `firmware/`는 Docker 컨테이너로 실행하지 않는다.
+Raspberry Pi의 `edge/`와 `pi_led_agent/`는 Docker 컨테이너로 실행하지 않는다.
 
 ```
 Raspberry Pi
     │ WebSocket
     ▼
-Nginx → FastAPI·AI → Mosquitto → ESP32·릴레이
+Nginx → FastAPI·AI → Mosquitto → Raspberry Pi LED agent → GPIO LED
               │
               └──────────────→ PostgreSQL
 ```
@@ -345,7 +339,7 @@ main                              # 전체 기능이 정상 동작하는 안정 
 | `ai-vision` | MediaPipe Hands, 랜드마크, 포인팅, 제스처 판정 |
 | `ai-intent` | 기기 매칭, 상태머신, 명령 확정, 안전 취소 |
 | `web-app` | FastAPI, React, PostgreSQL, 인증, 도움 요청 |
-| `integration` | 공통 인터페이스, MQTT, ESP32, Docker, 모듈 통합 |
+| `integration` | 공통 인터페이스, MQTT, Raspberry Pi LED agent, Docker, 모듈 통합 |
 | `main` | 통합 테스트가 완료된 실행 가능한 안정 버전 |
 
 ### 개발 및 통합 절차
@@ -416,7 +410,7 @@ main                              # 전체 기능이 정상 동작하는 안정 
 - Edge → AI 영상 전송 규격 확정
 - AI → MQTT 명령 규격 확정
 - MQTT Topic과 `command_id`, ACK 규격 관리
-- ESP32·릴레이 제어 구현
+- Raspberry Pi MQTT LED 제어 구현
 - Docker Compose, Mosquitto, Nginx 설정
 - 각 모듈을 연결한 통합 테스트
 - GitHub PR 충돌과 버전 호환 확인
@@ -426,7 +420,7 @@ main                              # 전체 기능이 정상 동작하는 안정 
 | 1명 | 엣지 담당 | Raspberry Pi 4B, 카메라, JPEG 인코딩, WebSocket 전송·재접속 |
 | 2명 | AI·의도 판단 | MediaPipe Hands, 규칙 기반 제스처, 2차원 포인팅, 대상 매칭, 상태머신 |
 | 1명 | 웹·응용 서버 | React 화면, FastAPI API, PostgreSQL, 사용자·기기·도움 요청 관리 |
-| 1명 | 인터페이스·통합 | 공통 메시지 규격, MQTT, ESP32·릴레이, Docker Compose, 전체 통합 테스트 |
+| 1명 | 인터페이스·통합 | 공통 메시지 규격, MQTT, Raspberry Pi LED, Docker Compose, 전체 통합 테스트 |
 
 각 담당자는 자신의 모듈에 대한 단위 테스트까지 책임진다.
 통합 담당자는 공통 규격과 모듈 간 연결 테스트를 책임진다.
