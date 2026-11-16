@@ -1,4 +1,9 @@
 camera:
+  # opencv: USB 웹캠·노트북 카메라 | picamera2: Pi 카메라 모듈(CSI) | synthetic: 하드웨어 없이 테스트 패턴
+  # file: file_path의 동영상·이미지 폴더·이미지를 반복 재생 (협업용 더미 송출)
+  source: opencv
+  file_path: null
+  file_loop: true
   device_index: 0
   width: 640
   height: 480
@@ -10,7 +15,8 @@ edge:
   edge_id: raspberrypi-01
   camera_id: camera-01
   server_url: ws://localhost:8000
-  edge_token: CHANGE_ME
+  edge_token: CHANGE_ME  # 환경변수 EDGE_TOKEN 권장
+  ack_timeout_sec: 2.0
 
 devices:
   light:
@@ -19,3 +25,24 @@ devices:
   fan:
     type: gpio_relay
     pin: 27
+
+# 송출 제어 (python -m edge.stream_control.main). 버튼·LED로 송출을 켜고 끈다.
+# 배선과 systemd 등록은 docs/edge-stream-control.md 참고
+stream_control:
+  device_id: edge-stream-01
+  button_pin: null       # 예: 26 (BCM 26 = 물리 37번 핀, 반대쪽은 GND). 버튼이 없으면 null
+  led_pin: null          # 예: 22 (BCM 22 = 물리 15번 핀 → 330Ω → LED → GND). LED가 없으면 null(로그로 대신)
+  initial_state: OFF     # ON이면 제어 프로세스가 시작될 때(=부팅 시) 바로 송출
+  command: null          # null이면 "<현재 파이썬> -m edge.main --stream" (--mock이면 --source synthetic 추가)
+  remote:                # MQTT 원격 ON/OFF (선택). 제스처 제어 대상과 분리하는 방식은 팀 합의 후 결정
+    enabled: false
+    home_id: home-01
+    client_id: raspberrypi-01-stream
+    time_sync_required: true   # 규격 11.7: NTP 동기화 전에는 명령을 실행하지 않음
+    mqtt:
+      host: localhost    # 환경변수 EDGE_MQTT_HOST 우선
+      port: 1883
+      tls: false
+      username: null     # EDGE_MQTT_USERNAME 우선
+      password: null     # EDGE_MQTT_PASSWORD 권장
+      keepalive_sec: 30

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gesture-result.schema.json",
+  "title": "CloudAIoT v1 GestureResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "frame_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string"},
+    "handedness": {"enum": ["LEFT", "RIGHT", "UNKNOWN"]},
+    "gesture": {"enum": ["POINTING", "THUMB_UP", "THUMB_DOWN", "HELP", "UNKNOWN"]},
+    "pointing_vector": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "start_x": {"type": "number", "minimum": 0, "maximum": 1},
+        "start_y": {"type": "number", "minimum": 0, "maximum": 1},
+        "end_x": {"type": "number", "minimum": 0, "maximum": 1},
+        "end_y": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "required": ["start_x", "start_y", "end_x", "end_y"]
+    },
+    "stable_frames": {"type": "integer", "minimum": 0},
+    "hold_time_ms": {"type": "integer", "minimum": 0},
+    "detected_at_ms": {"type": "integer", "minimum": 0}
+  },
+  "required": [
+    "schema_version",
+    "frame_id",
+    "correlation_id",
+    "handedness",
+    "gesture",
+    "stable_frames",
+    "hold_time_ms",
+    "detected_at_ms"
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"gesture": {"const": "POINTING"}}, "required": ["gesture"]},
+      "then": {"properties": {"pointing_vector": {"type": "object"}}, "required": ["pointing_vector"]}
+    }
+  ]
+}

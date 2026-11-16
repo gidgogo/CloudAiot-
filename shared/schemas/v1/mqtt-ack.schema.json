@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mqtt-ack.schema.json",
+  "title": "CloudAIoT v1 MqttAck",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "command_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "device_id": {"type": "string", "minLength": 1},
+    "result": {"enum": ["OK", "ERROR", "EXPIRED", "DUPLICATE"]},
+    "state": {"enum": ["ON", "OFF", "UNKNOWN"]},
+    "processed_at_ms": {"type": "integer", "minimum": 0},
+    "error_code": {"type": ["string", "null"]}
+  },
+  "required": ["schema_version", "command_id", "correlation_id", "device_id", "result", "state", "processed_at_ms", "error_code"]
+}

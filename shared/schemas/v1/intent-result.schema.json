@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "intent-result.schema.json",
+  "title": "CloudAIoT v1 IntentResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "intent_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string"},
+    "target_device_id": {"type": ["string", "null"]},
+    "action": {"type": ["string", "null"], "enum": ["ON", "OFF", "HELP", null]},
+    "status": {"enum": ["PENDING", "CONFIRMED", "CANCELLED"]},
+    "confirmed_at_ms": {"type": ["integer", "null"], "minimum": 0},
+    "cancel_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "TARGET_NOT_FOUND",
+        "AMBIGUOUS_TARGET",
+        "GESTURE_TIMEOUT",
+        "INVALID_GESTURE",
+        "DIRECTION_CHANGED",
+        null
+      ]
+    }
+  },
+  "required": ["schema_version", "intent_id", "correlation_id", "target_device_id", "status"],
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "CONFIRMED"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "action": {"enum": ["ON", "OFF", "HELP"]},
+          "confirmed_at_ms": {"type": "integer", "minimum": 0},
+          "cancel_reason": {"type": "null"}
+        },
+        "required": ["action", "confirmed_at_ms"]
+      },
+      "else": {
+        "properties": {
+          "action": {"type": "null"},
+          "confirmed_at_ms": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "CANCELLED"}}, "required": ["status"]},
+      "then": {
+        "properties": {"cancel_reason": {"enum": ["TARGET_NOT_FOUND", "AMBIGUOUS_TARGET", "GESTURE_TIMEOUT", "INVALID_GESTURE", "DIRECTION_CHANGED"]}},
+        "required": ["cancel_reason"]
+      },
+      "else": {"properties": {"cancel_reason": {"type": "null"}}}
+    }
+  ]
+}

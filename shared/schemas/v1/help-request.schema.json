@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "help-request.schema.json",
+  "title": "CloudAIoT v1 HelpRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "user_id": {"type": "string", "minLength": 1},
+    "source": {"enum": ["GESTURE", "WEB"]},
+    "status": {"enum": ["CREATED", "CONFIRMED", "COMPLETED"]},
+    "created_at_ms": {"type": "integer", "minimum": 0}
+  },
+  "required": ["schema_version", "request_id", "correlation_id", "user_id", "source", "status", "created_at_ms"]
+}

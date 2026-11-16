@@ -126,12 +126,21 @@ class GestureResult(Message):
     hold_time_ms: int = 0
     detected_at_ms: int = field(default_factory=now_ms)
 
+    def as_dict(self) -> dict[str, Any]:
+        """Serialize only the v1 contract fields; legacy demo fields stay local."""
+        payload = Message.as_dict(self)
+        for name in ("name", "confidence", "timestamp"):
+            payload.pop(name)
+        return payload
+
 @dataclass(slots=True)
 class IntentResult(Message):
     intent_id: str = field(default_factory=new_id)
     correlation_id: str = ""
     target_device_id: str | None = None
-    action: IntentAction = IntentAction.HELP
+    # A selected or cancelled intent must not be mistaken for a HELP request.
+    # Only CONFIRMED results carry an action in v1.
+    action: IntentAction | None = None
     status: IntentStatus = IntentStatus.PENDING
     confirmed_at_ms: int | None = None
     cancel_reason: str | None = None

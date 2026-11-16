@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frame-ack.schema.json",
+  "title": "CloudAIoT v1 FrameAck",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "type": {"const": "frame_ack"},
+    "frame_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PROCESSED", "DROPPED", "INVALID", "ERROR"]},
+    "received_at_ms": {"type": "integer", "minimum": 0},
+    "processed_at_ms": {"type": "integer", "minimum": 0},
+    "processing_time_ms": {"type": "integer", "minimum": 0}
+  },
+  "required": ["schema_version", "type", "frame_id", "status", "received_at_ms", "processed_at_ms", "processing_time_ms"]
+}

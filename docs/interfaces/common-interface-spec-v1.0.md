@@ -9,7 +9,7 @@
 - Edge–AI 영상 전송
 - AI "담당 A – AI" / "담당 B 인식 결과 전달"
 - AI –웹 REST API 및 실시간 이벤트
-- AI–MQTT–ESP32 기기 제어
+- AI–MQTT–Raspberry Pi LED agent 기기 제어
 - 도움 요청 처리
 - 공통 인증·오류·버전 관리
 
@@ -43,7 +43,7 @@ AI·응용 서버
 Mosquitto Broker
         │
         ▼
-ESP32·릴레이·IoT 기기
+Raspberry Pi LED agent·IoT 기기
         │
         └─ ACK·상태 → Mosquitto → AI·응용 서버
 ```
@@ -107,6 +107,7 @@ v1 규격은 수정하지 않고 유지한다. 호환되지 않는 변경이 필
 shared/schemas/
 ├── v1/
 │   ├── frame-metadata.schema.json
+│   ├── frame-ack.schema.json
 │   ├── gesture-result.schema.json
 │   ├── intent-result.schema.json
 │   ├── mqtt-command.schema.json
@@ -351,6 +352,10 @@ AI 담당 A는 다음 형식으로 AI 담당 B의 의도 판단 모듈에 결과
 - `PENDING`
 - `CONFIRMED`
 - `CANCELLED`
+
+`PENDING`과 `CANCELLED`에서는 `action`을 생략하거나 `null`로 전송한다. 수신자는
+`status == CONFIRMED`인 경우에만 `action`을 해석한다. `PENDING`은 대상 선택 진행 상태이며,
+`CANCELLED`는 기기 제어 명령을 생성하지 않는다.
 
 HELP 의도는 특정 기기를 대상으로 하지 않는다.
 
@@ -677,10 +682,10 @@ aiot/v1/{home_id}/{device_id}/status
 
 | Topic | 방향 | 역할 |
 | --- | --- | --- |
-| `cmd` | 서버 → ESP32 | 기기 제어 명령 |
-| `ack` | ESP32 → 서버 | 명령 실행 결과 |
-| `state` | ESP32 → 서버 | 현재 기기 상태 |
-| `status` | ESP32 → 서버 | 온라인·오프라인 상태와 LWT |
+| `cmd` | 서버 → Raspberry Pi LED agent | 기기 제어 명령 |
+| `ack` | Raspberry Pi LED agent → 서버 | 명령 실행 결과 |
+| `state` | Raspberry Pi LED agent → 서버 | 현재 LED ON/OFF 상태 |
+| `status` | Raspberry Pi LED agent → 서버 | 온라인·오프라인 상태와 LWT |
 
 ## 11.2 제어 명령
 
@@ -757,35 +762,35 @@ HELP는 MQTT 기기 제어 명령으로 발행하지 않는다.
 | `status` Retain | `true` |
 | ACK 제한시간 | 2초 |
 | 명령 유효시간 | 5초 |
-| ESP32 세션 | Clean Session |
+| Raspberry Pi LED agent 세션 | Clean Session |
 | 초기 자동 재전송 | 사용하지 않음 |
 | 중복 방지 | `command_id` |
 
 ACK 제한시간과 명령 유효시간은 서로 다르다.
 
 - 서버는 명령 발행 후 2초 동안 ACK를 기다린다.
-- ESP32는 발행 후 5초가 지난 명령을 실행하지 않는다.
+- Raspberry Pi LED agent는 발행 후 5초가 지난 명령을 실행하지 않는다.
 - ACK가 2초 이내에 오지 않으면 서버는 명령을 실패로 기록한다.
-- 늦게 도착한 명령은 ESP32가 `EXPIRED`로 처리한다.
+- 늦게 도착한 명령은 Raspberry Pi LED agent가 `EXPIRED`로 처리한다.
 
 ## 11.6 중복 명령 처리
 
 ```
 처음 받은 command_id
-→ 릴레이 동작
+→ GPIO LED 동작
 → command_id 저장
 → ACK 발행
 
 이미 처리한 command_id
-→ 릴레이 재동작 금지
+→ GPIO LED 재동작 금지
 → DUPLICATE ACK 발행
 ```
 
 ## 11.7 시간 동기화
 
-ESP32는 명령 만료 여부를 판단하기 위해 NTP로 시간을 동기화한다.
+Raspberry Pi LED agent는 명령 만료 여부를 판단하기 위해 시스템 시간을 NTP로 동기화한다.
 
-시간이 동기화되지 않은 상태에서는 릴레이 제어 명령을 실행하지 않고 오류 ACK를 발행하는 것을 원칙으로 한다.
+시간이 동기화되지 않은 상태에서는 LED 제어 명령을 실행하지 않고 오류 ACK를 발행하는 것을 원칙으로 한다.
 
 ## 11.8 LWT 상태
 
@@ -852,6 +857,7 @@ Mosquitto는 LWT 메시지를 `status` Topic에 Retain으로 발행한다.
 | 인터페이스 | 기준 파일 |
 | --- | --- |
 | Edge 프레임 메타데이터 | `shared/schemas/v1/frame-metadata.schema.json` |
+| Edge 프레임 ACK | `shared/schemas/v1/frame-ack.schema.json` |
 | 손동작 인식 결과 | `shared/schemas/v1/gesture-result.schema.json` |
 | 최종 의도 결과 | `shared/schemas/v1/intent-result.schema.json` |
 | MQTT 명령 | `shared/schemas/v1/mqtt-command.schema.json` |

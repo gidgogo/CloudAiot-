@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mqtt-command.schema.json",
+  "title": "CloudAIoT v1 MqttCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "command_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "device_id": {"type": "string", "minLength": 1},
+    "action": {"enum": ["ON", "OFF"]},
+    "issued_at_ms": {"type": "integer", "minimum": 0},
+    "expires_at_ms": {"type": "integer", "minimum": 0},
+    "source": {"enum": ["GESTURE", "WEB", "SYSTEM"]}
+  },
+  "required": ["schema_version", "command_id", "correlation_id", "device_id", "action", "issued_at_ms", "expires_at_ms", "source"]
+}

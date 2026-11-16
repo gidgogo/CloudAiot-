@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frame-metadata.schema.json",
+  "title": "CloudAIoT v1 FrameMetadata",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "type": {"const": "frame_metadata"},
+    "frame_id": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "edge_id": {"type": "string", "minLength": 1},
+    "camera_id": {"type": "string", "minLength": 1},
+    "captured_at_ms": {"type": "integer", "minimum": 0},
+    "width": {"type": "integer", "minimum": 1},
+    "height": {"type": "integer", "minimum": 1},
+    "format": {"const": "jpeg"},
+    "jpeg_quality": {"type": "integer", "minimum": 1, "maximum": 100},
+    "mirrored": {"type": "boolean"},
+    "rotation_deg": {"enum": [0, 90, 180, 270]}
+  },
+  "required": ["schema_version", "type", "frame_id", "correlation_id", "edge_id", "camera_id", "captured_at_ms", "width", "height", "format", "jpeg_quality", "mirrored", "rotation_deg"]
+}

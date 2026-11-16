@@ -7,4 +7,4 @@
 현재 dataclass는 프로세스 내부 객체이며, 네트워크 직렬화·검증 계약은 아직 구현되지 않았습니다.
 
 향후 영상 프레임 전송, MQTT 명령·ACK, 보호자 이벤트의 JSON 형식과 버전을 이곳에 정의합니다.
-ESP32와 웹은 Python 코드를 직접 사용하지 않으므로 합의된 JSON 스키마나 명세를 기준으로 구현합니다.
+Raspberry Pi LED agent와 웹은 합의된 JSON 스키마와 명세를 기준으로 구현합니다. Pi LED agent는 MQTT v1 Topic·명령·ACK·state·status 계약을 사용합니다.

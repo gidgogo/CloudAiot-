@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FrameAck",
+  "description": "Common interface v1.0 5.5. Edge(sender) and AI server(receiver) validate against this file.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "type",
+    "frame_id",
+    "status",
+    "received_at_ms",
+    "processed_at_ms",
+    "processing_time_ms"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "type": {
+      "const": "frame_ack"
+    },
+    "frame_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "enum": [
+        "PROCESSED",
+        "DROPPED",
+        "INVALID",
+        "ERROR"
+      ]
+    },
+    "received_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "processed_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "processing_time_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
