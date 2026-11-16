@@ -70,4 +70,5 @@ def _result(
         pointing_vector=vector,
         stable_frames=stability.frames,
         hold_time_ms=stability.hold_ms,
+        detected_at_ms=metadata.captured_at_ms,
     )

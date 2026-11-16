@@ -41,6 +41,7 @@ def test_no_hand_is_unknown_with_zero_stability():
     assert (result.frame_id, result.correlation_id) == (meta.frame_id, meta.correlation_id)
     assert (result.gesture, result.handedness, result.pointing_vector) == (GestureType.UNKNOWN, Handedness.UNKNOWN, None)
     assert (result.stable_frames, result.hold_time_ms) == (0, 0)
+    assert result.detected_at_ms == meta.captured_at_ms
 
 
 def test_held_pointing_reports_vector_and_stability():
