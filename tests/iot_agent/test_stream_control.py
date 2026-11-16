@@ -101,13 +101,40 @@ def test_crash_is_detected_once_and_cleared_on_restart():
 
 def test_panel_button_toggles_led_and_publishes_state():
     switch, _ = make_switch()
-    led, published = FakeLed(), []
-    panel = StreamPanel(switch, led, lambda: published.append(switch.is_on))
+    led, published, now = FakeLed(), [], [0.0]
+    panel = StreamPanel(switch, led, lambda: published.append(switch.is_on), clock=lambda: now[0])
     assert led.calls == ["off"] and published == []
     panel.press()
     assert led.calls[-1] == "on" and published == [True]
+    now[0] += 3.0
     panel.press()
     assert led.calls[-1] == "off" and published == [True, False]
+
+
+def test_panel_ignores_bounce_presses_queued_during_stop():
+    # 실제 Pi에서 재현: 정지에 ~0.8초 걸리는 동안 쌓인 접점 떨림이 연달아 들어와 ON/OFF가 8번 뒤집혔다.
+    switch, _ = make_switch()
+    now = [100.0]
+    panel = StreamPanel(switch, FakeLed(), lambda: None, clock=lambda: now[0])
+    panel.press()                 # ON
+    now[0] += 5.0
+    panel.press()                 # OFF (정상 누름)
+    for _ in range(8):            # 처리 직후 연달아 들어온 떨림
+        now[0] += 0.1
+        panel.press()
+    assert not switch.is_on
+    now[0] += 2.0
+    panel.press()                 # 다음 정상 누름은 받아들인다
+    assert switch.is_on
+
+
+def test_panel_ignores_press_while_previous_press_is_running():
+    switch, _ = make_switch()
+    panel = StreamPanel(switch, FakeLed(), lambda: None)
+    panel._press_lock.acquire()   # 다른 스레드가 정지 처리 중인 상황
+    panel.press()
+    panel._press_lock.release()
+    assert not switch.is_on
 
 
 def test_panel_blinks_and_publishes_when_stream_dies():
