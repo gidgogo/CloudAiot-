@@ -7,7 +7,7 @@
 
 | 값 | 결정 | 위치 |
 | --- | --- | --- |
-| 대상 선택 유지 시간 | 3000ms | `IntentParameters.selection_timeout_ms` |
+| 대상 선택 유지 시간 | 3000ms. 최초 선택 시점이 아니라 **마지막 유효 포인팅 시점부터** 셈 | `IntentParameters.selection_timeout_ms` |
 | 안정화 프레임 | 6프레임 이상 (AI A의 `stability_checker.py`와 같은 값) | `min_stable_frames` |
 | 제스처 유지 시간 | 500ms 이상 (AI A와 같은 값) | `min_hold_ms` |
 | 선택 중 방향 변화 허용 | 15° (정확히 15°는 유지, 넘으면 취소) | `max_angle_delta_deg` |
@@ -21,6 +21,7 @@
 - `min_angle_deg > max_angle_deg`인 영역은 ±180°를 넘는 범위로 봄(예: 170 ~ -170).
 - 영역 경계는 포함함. 경계가 맞닿은 두 기기는 그 각도에서 `AMBIGUOUS_TARGET`이 됨. `enabled=false` 기기는 매칭에서 뺌.
 - 선택 중 방향이 바뀌면 `DIRECTION_CHANGED`로 취소만 하고, 새 대상은 다음 POINTING 프레임에서 고름.
+- 선택한 기기를 계속 가리키면(방향 변화 15° 이내) 선택 만료 시각이 그 프레임부터 다시 시작됨. 가리키고 있는 동안 만료 → 재선택이 3초마다 반복되어 PENDING·취소 결과가 쏟아지는 것을 막고, 손을 거둔 뒤 엄지를 들 시간을 주기 위함. 가리키기만으로는 기기가 동작하지 않으므로 선택이 오래 유지돼도 위험하지 않음.
 - 같은 제스처가 이어지는 동안 CONFIRMED는 한 번만 나옴. 확정하면 선택을 지움.
 - HELP를 확정하면 기기 선택도 지움(직후 엄지로 기기가 켜지지 않게 하기 위함).
 - 확정(CONFIRMED)된 결과만 지연시간을 기록함(NFR-01).
