@@ -92,7 +92,7 @@ Edge ◀─(텍스트) frame_ack JSON ─────── AI
 
 - 정의된 필드 외에는 보내지 않는다 (규격 14장 2번).
 - `mirrored`, `rotation_deg`는 **정보로만 전달**한다. Edge는 영상을 뒤집거나 돌리지 않고, AI 서버가 좌표 해석 시 반영한다 (규격 4.4).
-- 검증 기준: `shared/types.py`의 `FrameMetadata`, `shared/schemas/frame-metadata.schema.json`
+- 검증 기준: `shared/types.py`의 `FrameMetadata`, `shared/schemas/v1/frame-metadata.schema.json`
 
 ### 1.4 JPEG 바이너리 (바이너리 메시지)
 
@@ -209,9 +209,9 @@ EDGE_TOKEN=dev-token python -m edge.main --stream --source synthetic
 
 ### 1.9 현재 상태와 미결정 사항
 
-- **서버 수신부 미구현**: `server/`에는 `/ws/v1/frames` 라우터가 아직 없다. 지금 동작하는 상대는 Mock 서버뿐이다.
+- **서버 수신부 구현**: `server/api/frames.py`가 인증, 메타데이터·JPEG 검증, Vision→Intent 처리와 ACK를 담당한다.
 - **해상도·FPS·품질은 임시 기본값**: 공통 규격 5.1과 SAD v1.0 미결정 사항에 따라, 실제 Raspberry Pi에서 전송량·지연·인식 성공률을 측정한 뒤 확정한다.
-- **공유 스키마 갱신 (합의 대기)**: `shared/schemas/frame-metadata.schema.json`을 규격 5.4의 13개 필드로 고치고(`captured_at` → `captured_at_ms`), `frame-ack.schema.json`(5.5)을 새로 추가했다. `shared/constants.py`에는 `FRAME_ACK_TIMEOUT_MS`와 `FRAME_ACK_STATUSES`를 추가했다. 규격 14장에 따라 서버·통합 담당의 Issue 합의 후 병합한다. 스키마 위치를 규격 13장의 `shared/schemas/v1/`로 옮기는 것은 다른 스키마와 함께 별도로 정한다.
+- **공유 스키마**: `shared/schemas/v1/frame-metadata.schema.json`과 `frame-ack.schema.json`을 송수신 계약으로 사용한다.
 - **[구현값] 항목 합의 필요**: 최대 프레임 크기 2MB, ACK 대기 2초, 연속 시간 초과 3회, 핸드셰이크 거부 HTTP 코드는 공통 규격에 없다. 서버 담당과 합의한 뒤 공통 규격에 넣을지 결정한다.
 
 ---
@@ -220,7 +220,7 @@ EDGE_TOKEN=dev-token python -m edge.main --stream --source synthetic
 
 서버가 웹 대시보드로 보내는 단방향 채널이다. 클라이언트가 보낸 메시지는 무시한다.
 기준: [공통 인터페이스 규격 v1.0](interfaces/common-interface-spec-v1.0.md) 8.5장(WebSocket 인증), 9장(이벤트).
-구현: `server/api/websocket.py`(연결·인증), `server/services/events.py`(EventHub).
+구현: `server/api/websocket.py`(연결·인증·EventHub).
 
 ### 2.1 연결과 인증 (규격 8.5)
 

@@ -18,6 +18,11 @@ API 문서는 <http://127.0.0.1:8000/docs>에서 확인합니다. `DATABASE_URL`
 설정 환경변수는 `server/config.py`(`Settings`)와 루트 `.env.example`에 정리되어 있습니다.
 실시간 이벤트 허브가 프로세스 메모리에 있으므로 uvicorn은 워커 1개(기본값)로 실행합니다(`--workers` 금지, `deploy/README.md` 참고).
 
+`/ws/v1/frames`는 Edge Token을 검사한 뒤 메타데이터와 JPEG를 받아
+Vision → Intent → HELP 또는 MQTT 제어로 연결합니다. MQTT ACK·상태·LWT도 같은 API 프로세스가
+구독하여 DB와 `/ws/v1/events`에 반영합니다. 관련 설정은 `EDGE_TOKEN`, `MQTT_ENABLED`,
+`MQTT_HOST`, `MQTT_HOME_ID` 환경변수로 지정합니다.
+
 영상 분석 모듈을 개발할 때 추가 의존성을 설치합니다.
 
 ```bash
@@ -46,7 +51,7 @@ python -m pip install -e ".[server,vision]"
 | `security/jwt.py` | JWT Cookie, CSRF·Origin 검사 |
 | `security/authentication.py`, `permissions.py` | 비밀번호(bcrypt)·로그인 잠금, 역할 권한 |
 
-다른 모듈이 쓰는 연결 지점은 `docs/api-spec.md`, `docs/websocket-spec.md`에 정리했습니다.
+통합 실행 흐름과 외부 계약은 `docs/api-spec.md`, `docs/websocket-spec.md`, `docs/mqtt-spec.md`에 정리했습니다.
 
 - IoT: `ControlEventService.record_command / record_ack / mark_timeout`, `DeviceService.update_state / update_connection_status`
 - 의도 판단: `DeviceService.pointing_regions()`, `GestureMappingService.action_for()`, `HelpService.create_from_gesture()`
