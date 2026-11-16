@@ -28,6 +28,9 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements-dev.txt
+      # MediaPipe's libmediapipe.so links against GLES/EGL, which the Ubuntu runner lacks.
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgles2 libegl1
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pip check
       - run: python -m pytest -q
