@@ -1,0 +1,38 @@
+# IoT 제어 Pi 설정 예제. iot_agent/config.yaml로 복사해 수정한다(커밋 금지).
+agent:
+  agent_id: raspberrypi-iot-01   # MQTT client_id 접두사. 브로커 안에서 유일해야 함
+  home_id: home-01               # Topic aiot/v1/{home_id}/{device_id}/... 의 home_id. 서버와 같아야 함
+
+mqtt:
+  host: localhost                # 환경변수 IOT_MQTT_HOST 우선
+  port: 1883
+  tls: false                     # 외부망이면 true + 포트 8883
+  username: null                 # 환경변수 IOT_MQTT_USERNAME 우선
+  password: null                 # 환경변수 IOT_MQTT_PASSWORD 권장
+  keepalive_sec: 30
+
+time_sync:
+  # 규격 11.7: NTP 동기화 전에는 명령을 실행하지 않고 ERROR ACK를 보낸다.
+  required: true
+
+devices:
+  # 키가 device_id. 서버·웹에 등록한 device_id와 같아야 한다.
+  light-01:
+    type: gpio_relay
+    pin: 17              # BCM 번호
+    active_high: false   # 흔한 릴레이 모듈은 LOW에서 켜짐(active-low). 모듈에 맞게 설정
+    initial_state: OFF   # 에이전트 시작 시 상태. 안전을 위해 OFF 권장
+  fan-01:
+    type: gpio_relay
+    pin: 27
+    active_high: false
+    initial_state: OFF
+  # 카메라 영상 송출(edge.main --stream)을 기기 하나처럼 ON/OFF 한다.
+  # 웹·서버는 다른 기기와 똑같이 aiot/v1/{home_id}/edge-stream-01/cmd 로 ON/OFF를 보내면 된다.
+  edge-stream-01:
+    type: edge_stream
+    button_pin: 26       # BCM 26 (물리 37번 핀). 버튼 반대쪽은 GND(39번 핀). 버튼이 없으면 null
+    led_pin: 22          # BCM 22 (물리 15번 핀) → 330Ω 저항 → LED → GND. LED가 없으면 null
+    initial_state: OFF   # ON이면 에이전트가 시작될 때(=부팅 시) 바로 송출
+    command: null        # null이면 "<현재 파이썬> -m edge.main --stream" (--mock이면 --source synthetic 추가)
+    # 송출 설정(서버 주소·토큰·카메라)은 edge/config.yaml 또는 EDGE_* 환경변수를 따른다.
