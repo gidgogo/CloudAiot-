@@ -9,7 +9,7 @@
 - Edge–AI 영상 전송
 - AI "담당 A – AI" / "담당 B 인식 결과 전달"
 - AI –웹 REST API 및 실시간 이벤트
-- AI–MQTT–ESP32 기기 제어
+- AI–MQTT–Raspberry Pi LED agent 기기 제어
 - 도움 요청 처리
 - 공통 인증·오류·버전 관리
 
@@ -43,7 +43,7 @@ AI·응용 서버
 Mosquitto Broker
         │
         ▼
-ESP32·릴레이·IoT 기기
+Raspberry Pi LED agent·IoT 기기
         │
         └─ ACK·상태 → Mosquitto → AI·응용 서버
 ```
@@ -682,10 +682,10 @@ aiot/v1/{home_id}/{device_id}/status
 
 | Topic | 방향 | 역할 |
 | --- | --- | --- |
-| `cmd` | 서버 → ESP32 | 기기 제어 명령 |
-| `ack` | ESP32 → 서버 | 명령 실행 결과 |
-| `state` | ESP32 → 서버 | 현재 기기 상태 |
-| `status` | ESP32 → 서버 | 온라인·오프라인 상태와 LWT |
+| `cmd` | 서버 → Raspberry Pi LED agent | 기기 제어 명령 |
+| `ack` | Raspberry Pi LED agent → 서버 | 명령 실행 결과 |
+| `state` | Raspberry Pi LED agent → 서버 | 현재 LED ON/OFF 상태 |
+| `status` | Raspberry Pi LED agent → 서버 | 온라인·오프라인 상태와 LWT |
 
 ## 11.2 제어 명령
 
@@ -762,35 +762,35 @@ HELP는 MQTT 기기 제어 명령으로 발행하지 않는다.
 | `status` Retain | `true` |
 | ACK 제한시간 | 2초 |
 | 명령 유효시간 | 5초 |
-| ESP32 세션 | Clean Session |
+| Raspberry Pi LED agent 세션 | Clean Session |
 | 초기 자동 재전송 | 사용하지 않음 |
 | 중복 방지 | `command_id` |
 
 ACK 제한시간과 명령 유효시간은 서로 다르다.
 
 - 서버는 명령 발행 후 2초 동안 ACK를 기다린다.
-- ESP32는 발행 후 5초가 지난 명령을 실행하지 않는다.
+- Raspberry Pi LED agent는 발행 후 5초가 지난 명령을 실행하지 않는다.
 - ACK가 2초 이내에 오지 않으면 서버는 명령을 실패로 기록한다.
-- 늦게 도착한 명령은 ESP32가 `EXPIRED`로 처리한다.
+- 늦게 도착한 명령은 Raspberry Pi LED agent가 `EXPIRED`로 처리한다.
 
 ## 11.6 중복 명령 처리
 
 ```
 처음 받은 command_id
-→ 릴레이 동작
+→ GPIO LED 동작
 → command_id 저장
 → ACK 발행
 
 이미 처리한 command_id
-→ 릴레이 재동작 금지
+→ GPIO LED 재동작 금지
 → DUPLICATE ACK 발행
 ```
 
 ## 11.7 시간 동기화
 
-ESP32는 명령 만료 여부를 판단하기 위해 NTP로 시간을 동기화한다.
+Raspberry Pi LED agent는 명령 만료 여부를 판단하기 위해 시스템 시간을 NTP로 동기화한다.
 
-시간이 동기화되지 않은 상태에서는 릴레이 제어 명령을 실행하지 않고 오류 ACK를 발행하는 것을 원칙으로 한다.
+시간이 동기화되지 않은 상태에서는 LED 제어 명령을 실행하지 않고 오류 ACK를 발행하는 것을 원칙으로 한다.
 
 ## 11.8 LWT 상태
 
