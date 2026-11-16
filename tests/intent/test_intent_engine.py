@@ -292,7 +292,7 @@ def test_thumb_without_selection_is_cancelled(engine):
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == TARGET_NOT_FOUND
     assert result.target_device_id is None
-    assert result.action is IntentAction.ON
+    assert result.action is None
 
 
 def test_holding_thumb_without_selection_cancels_once(engine):
@@ -476,8 +476,12 @@ def test_result_fields_follow_spec_6_2():
         assert (data["confirmed_at_ms"] is not None) == (result.status is IntentStatus.CONFIRMED)
         if result.status is IntentStatus.CANCELLED:
             assert data["cancel_reason"] in CANCEL_REASONS
+            assert data["action"] is None
+        elif result.status is IntentStatus.PENDING:
+            assert data["action"] is None
         else:
             assert data["cancel_reason"] is None
+            assert data["action"] is not None
 
 
 def test_each_result_gets_its_own_intent_id():

@@ -222,7 +222,7 @@ class IntentEngine:
     def _command(self, result: GestureResult, action: IntentAction) -> IntentResult:
         target = self.state.active_target(result.detected_at_ms)
         if target is None:
-            return self._cancelled(result, TARGET_NOT_FOUND, action=action)
+            return self._cancelled(result, TARGET_NOT_FOUND)
         self.state.confirm()
         return self._confirmed(result, action, target_device_id=target)
 
@@ -253,11 +253,8 @@ class IntentEngine:
         reason: str,
         *,
         target_device_id: str | None = None,
-        action: IntentAction | None = None,
     ) -> IntentResult:
-        return IntentEngine._cancelled_for(
-            result.correlation_id, reason, target_device_id=target_device_id, action=action
-        )
+        return IntentEngine._cancelled_for(result.correlation_id, reason, target_device_id=target_device_id)
 
     @staticmethod
     def _cancelled_for(
@@ -265,17 +262,13 @@ class IntentEngine:
         reason: str,
         *,
         target_device_id: str | None = None,
-        action: IntentAction | None = None,
     ) -> IntentResult:
-        cancelled = IntentResult(
+        return IntentResult(
             correlation_id=correlation_id,
             target_device_id=target_device_id,
             status=IntentStatus.CANCELLED,
             cancel_reason=reason,
         )
-        if action is not None:
-            cancelled.action = action
-        return cancelled
 
 
 # --- received message checks (spec 3.3, 14.6, 14.7) -------------------------------

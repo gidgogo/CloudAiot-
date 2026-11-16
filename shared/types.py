@@ -131,7 +131,9 @@ class IntentResult(Message):
     intent_id: str = field(default_factory=new_id)
     correlation_id: str = ""
     target_device_id: str | None = None
-    action: IntentAction = IntentAction.HELP
+    # A selected or cancelled intent must not be mistaken for a HELP request.
+    # Only CONFIRMED results carry an action in v1.
+    action: IntentAction | None = None
     status: IntentStatus = IntentStatus.PENDING
     confirmed_at_ms: int | None = None
     cancel_reason: str | None = None
