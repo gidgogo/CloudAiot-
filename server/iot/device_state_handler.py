@@ -1,4 +1,4 @@
-"""Validate and parse retained state/status messages from ESP32."""
+"""Validate and parse retained state/status messages from MQTT devices."""
 
 from shared.constants import SCHEMA_VERSION
 from shared.types import DeviceConnectionStatus, DeviceState, DeviceStateMessage, DeviceStatusMessage
