@@ -23,6 +23,8 @@ logs/
 *.mp4
 *.avi
 *.h264
+*.db
+
 captures/
 config/config.yaml
 
