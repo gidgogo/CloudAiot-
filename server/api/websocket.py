@@ -79,6 +79,10 @@ async def event_socket(websocket: WebSocket) -> None:
     await websocket.accept()
     hub = websocket.app.state.events
     await hub.connect(websocket, principal)
+    # 이벤트는 저장되지 않으므로, 이미 연결된 Edge가 있으면 새 연결에도 현재 상태를 한 번 알려 준다.
+    for edge_id in sorted(getattr(websocket.app.state, "connected_edges", set())):
+        snapshot = RealtimeEvent(event_type="edge.connected", data={"edge_id": edge_id})
+        await websocket.send_text(json.dumps(snapshot.as_dict(), ensure_ascii=False))
     try:
         async with asyncio.timeout(max(0.0, expires_at - time.time())):
             while True:

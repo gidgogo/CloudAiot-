@@ -19,7 +19,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server.api import auth, control_events, devices, health, help_requests, rooms, websocket
+from server.api import auth, control_events, devices, frames, health, help_requests, rooms, websocket
+from server.api import debug_live  # DEBUG-LIVE
 from server.api.websocket import EventHub
 from server.config import Settings
 from server.db.session import Database, bootstrap
@@ -66,6 +67,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = settings
     application.state.db = db
     application.state.events = EventHub()
+    application.state.connected_edges = set()  # /ws/v1/frames에 연결된 edge_id
+    debug_live.install(application)  # DEBUG-LIVE
     application.state.login_limiter = LoginRateLimiter(settings.login_max_attempts, settings.login_lock_seconds)
     if settings.allowed_origins:
         # 프런트엔드와 API 주소가 다를 때만 쓰인다. Cookie 인증이라 "*"는 쓰지 않는다(규격 8.3).
@@ -74,8 +77,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["Content-Type", CSRF_HEADER])
     register_error_handlers(application)
     for router in (health.router, auth.router, auth.users_router, rooms.router, devices.router,
-                   devices.mappings_router, control_events.router, help_requests.router, websocket.router):
+                   devices.mappings_router, control_events.router, help_requests.router, websocket.router,
+                   frames.router):
         application.include_router(router)
+    application.include_router(debug_live.router)  # DEBUG-LIVE
     return application
 
 

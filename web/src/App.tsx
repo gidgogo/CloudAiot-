@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocat
 import { AuthProvider, DirectoryProvider, useAuth, useSession } from "./api/client";
 import { HelpAlerts, ToastProvider } from "./components/HelpRequestList";
 import { DashboardPage, HistoryPage } from "./pages/DashboardPage";
+import { DebugLivePage } from "./pages/DebugLivePage"; // DEBUG-LIVE
 import { HelpRequestPage } from "./pages/HelpRequestPage";
 import { AccountPage, LoginPage } from "./pages/LoginPage";
 import { AdminPage, RoomMappingPage } from "./pages/RoomMappingPage";
@@ -91,6 +92,7 @@ export const PAGES: PageRoute[] = [
   { path: "/mapping", label: "방·기기 설정", roles: ["ADMIN"], element: <RoomMappingPage /> },
   { path: "/admin", label: "사용자·매핑 관리", roles: ["ADMIN"], element: <AdminPage /> },
   { path: "/account", element: <AccountPage /> },
+  { path: "/debug/live", label: "실시간 확인(임시)", roles: ["ADMIN"], element: <DebugLivePage /> }, // DEBUG-LIVE
 ];
 
 // ---- Layout ----
