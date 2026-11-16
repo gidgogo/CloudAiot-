@@ -185,7 +185,7 @@ class IntentEngine:
         self._last_pointing_reason = None
         self.state.select(match.device_id, result.detected_at_ms, angle_deg=angle_deg)
         self._selection_correlation_id = result.correlation_id
-        return IntentResult(correlation_id=result.correlation_id, target_device_id=match.device_id)
+        return self._pending(result, match.device_id)
 
     # --- thumb and HELP: act through the gesture mapping ------------------------
 
@@ -222,11 +222,22 @@ class IntentEngine:
     def _command(self, result: GestureResult, action: IntentAction) -> IntentResult:
         target = self.state.active_target(result.detected_at_ms)
         if target is None:
-            return self._cancelled(result, TARGET_NOT_FOUND, action=action)
+            return self._cancelled(result, TARGET_NOT_FOUND)
         self.state.confirm()
         return self._confirmed(result, action, target_device_id=target)
 
     # --- results ----------------------------------------------------------------
+    # Only CONFIRMED carries an action. PENDING and CANCELLED send action=None (JSON null), as agreed
+    # with the integration owner, so no receiver can mistake a selection or a cancel for a HELP request.
+
+    @staticmethod
+    def _pending(result: GestureResult, target_device_id: str) -> IntentResult:
+        return IntentResult(
+            correlation_id=result.correlation_id,
+            target_device_id=target_device_id,
+            action=None,  # type: ignore[arg-type]  # shared IntentResult.action becomes nullable (agreed)
+            status=IntentStatus.PENDING,
+        )
 
     def _confirmed(
         self,
@@ -248,34 +259,18 @@ class IntentEngine:
         )
 
     @staticmethod
-    def _cancelled(
-        result: GestureResult,
-        reason: str,
-        *,
-        target_device_id: str | None = None,
-        action: IntentAction | None = None,
-    ) -> IntentResult:
-        return IntentEngine._cancelled_for(
-            result.correlation_id, reason, target_device_id=target_device_id, action=action
-        )
+    def _cancelled(result: GestureResult, reason: str, *, target_device_id: str | None = None) -> IntentResult:
+        return IntentEngine._cancelled_for(result.correlation_id, reason, target_device_id=target_device_id)
 
     @staticmethod
-    def _cancelled_for(
-        correlation_id: str,
-        reason: str,
-        *,
-        target_device_id: str | None = None,
-        action: IntentAction | None = None,
-    ) -> IntentResult:
-        cancelled = IntentResult(
+    def _cancelled_for(correlation_id: str, reason: str, *, target_device_id: str | None = None) -> IntentResult:
+        return IntentResult(
             correlation_id=correlation_id,
             target_device_id=target_device_id,
+            action=None,  # type: ignore[arg-type]  # see the results note above
             status=IntentStatus.CANCELLED,
             cancel_reason=reason,
         )
-        if action is not None:
-            cancelled.action = action
-        return cancelled
 
 
 # --- received message checks (spec 3.3, 14.6, 14.7) -------------------------------

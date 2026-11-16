@@ -125,6 +125,7 @@ def test_pointing_at_device_selects_it(engine):
     result = engine.consume(point(0.0, T0))
     assert result.status is IntentStatus.PENDING
     assert result.target_device_id == "fan-01"
+    assert result.action is None  # 대상만 골랐고 ON/OFF는 아직 정해지지 않았다
     assert result.confirmed_at_ms is None
     assert result.cancel_reason is None
     assert engine.state.target_device_id == "fan-01"
@@ -292,7 +293,7 @@ def test_thumb_without_selection_is_cancelled(engine):
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == TARGET_NOT_FOUND
     assert result.target_device_id is None
-    assert result.action is IntentAction.ON
+    assert result.action is None  # 시도한 ON/OFF도 넣지 않는다. 사유는 cancel_reason으로 충분하다
 
 
 def test_holding_thumb_without_selection_cancels_once(engine):
@@ -474,10 +475,35 @@ def test_result_fields_follow_spec_6_2():
         data = result.as_dict()
         assert data["schema_version"] == "1.0"
         assert (data["confirmed_at_ms"] is not None) == (result.status is IntentStatus.CONFIRMED)
+        if result.status is IntentStatus.CONFIRMED:
+            assert data["action"] in {"ON", "OFF", "HELP"}
+        else:
+            assert "action" in data and data["action"] is None  # 필드는 있고 값만 null
         if result.status is IntentStatus.CANCELLED:
             assert data["cancel_reason"] in CANCEL_REASONS
         else:
             assert data["cancel_reason"] is None
+
+
+def test_every_cancel_reason_has_null_action():
+    """취소 사유 5종 모두 action이 null이다. 받는 쪽이 취소를 도움 요청(HELP)으로 착각하지 않게 한다."""
+    cancels = []
+    cancels.append(IntentEngine(REGIONS).consume(point(45.0, T0)))  # TARGET_NOT_FOUND
+    cancels.append(IntentEngine([FAN, TV]).consume(point(0.0, T0)))  # AMBIGUOUS_TARGET
+    timed_out = IntentEngine(REGIONS)
+    timed_out.consume(point(0.0, T0))
+    cancels.append(timed_out.tick(T0 + TIMEOUT_MS + 1))  # GESTURE_TIMEOUT
+    turned = IntentEngine(REGIONS)
+    turned.consume(point(0.0, T0))
+    cancels.append(turned.consume(point(90.0, T0 + 100)))  # DIRECTION_CHANGED
+    invalid = IntentEngine(REGIONS, action_for=without(GestureType.THUMB_UP))
+    invalid.consume(point(0.0, T0))
+    cancels.append(invalid.consume(gesture(GestureType.THUMB_UP, T0 + 100)))  # INVALID_GESTURE
+    assert sorted(result.cancel_reason for result in cancels) == sorted(CANCEL_REASONS)
+    for result in cancels:
+        assert result.status is IntentStatus.CANCELLED
+        assert result.action is None
+        assert result.as_dict()["action"] is None
 
 
 def test_each_result_gets_its_own_intent_id():
