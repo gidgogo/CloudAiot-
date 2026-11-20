@@ -1,16 +1,15 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { api, useDirectory, useResource, useSession } from "../api/client";
+import { GestureBindingList } from "../components/DeviceStatus";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { findOverlaps, isValidRegion, PointingRegionEditor, RoomMap } from "../components/RoomMap";
 import {
-  ACTION_LABEL,
   type Device,
   DEVICE_TYPES,
   deviceIcon,
   type DeviceInput,
   deviceTypeLabel,
   formatTime,
-  GESTURE_LABEL,
   type GestureAction,
   type GestureMapping,
   type Role,
@@ -690,47 +689,7 @@ function MappingsSection() {
         검지 포인팅으로 기기를 고른 뒤 아래 제스처를 유지하면 연결된 명령이 실행됩니다. 같은 명령을 두 제스처에 연결할 수 없습니다.
       </p>
       {mappings.error && <p className="error-text">{mappings.error}</p>}
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">제스처</th>
-              <th scope="col">명령</th>
-              <th scope="col">사용</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(mappings.data ?? []).map((mapping) => (
-              <tr key={mapping.gesture}>
-                <td>{GESTURE_LABEL[mapping.gesture] ?? mapping.gesture}</td>
-                <td>
-                  <select
-                    aria-label={`${mapping.gesture} 명령`}
-                    value={mapping.action}
-                    onChange={(event) => void update(mapping, { action: event.target.value as GestureAction })}
-                  >
-                    {(Object.keys(ACTION_LABEL) as GestureAction[]).map((action) => (
-                      <option key={action} value={action}>
-                        {ACTION_LABEL[action]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={mapping.enabled}
-                      onChange={(event) => void update(mapping, { enabled: event.target.checked })}
-                    />
-                    <span>{mapping.enabled ? "사용" : "사용 안 함"}</span>
-                  </label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <GestureBindingList mappings={mappings.data ?? []} onChange={(mapping, changes) => void update(mapping, changes)} />
     </section>
   );
 }

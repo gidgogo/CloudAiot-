@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, DirectoryProvider, useAuth, useSession } from "./api/client";
+import { SoundToggle } from "./components/DeviceStatus";
 import { HelpAlerts, ToastProvider } from "./components/HelpRequestList";
 import { DashboardPage, HistoryPage } from "./pages/DashboardPage";
 import { HelpRequestPage } from "./pages/HelpRequestPage";
@@ -156,6 +157,7 @@ export function Layout() {
               <span className="dot" aria-hidden="true" />
               <span className="live-label">{SOCKET_LABEL[status]}</span>
             </span>
+            <SoundToggle />
             {canWatchHelp(role) && <NotificationButton />}
             <NavLink to="/account" className="user-chip" title="내 계정">
               {session.user.name}

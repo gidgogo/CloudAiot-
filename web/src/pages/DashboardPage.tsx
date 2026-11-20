@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useAuth, useDirectory, useResource, useSession } from "../api/client";
 import { DeviceCard } from "../components/DeviceCard";
-import { applyCommandEvent, ControlEventTable } from "../components/DeviceStatus";
+import {
+  applyCommandEvent,
+  ControlEventTable,
+  GestureBindingList,
+  RecognitionStrip,
+  SystemStatusCard,
+} from "../components/DeviceStatus";
 import { HelpRequestList, upsertHelpRequest, useHelpActions, useToast } from "../components/HelpRequestList";
 import { RoomMap } from "../components/RoomMap";
 import {
   canWatchHelp,
-  EDGE_STATUS_LABEL,
   EVENT_LABEL,
   formatLatency,
   formatTime,
@@ -87,7 +92,6 @@ export function DashboardPage() {
   const isUser = session.user.role === "USER";
   const watching = canWatchHelp(session.user.role);
   const { rooms, devices, patchDevice, userName, roomName, deviceName, loading, reload } = useDirectory();
-  const { edgeStatus } = useRealtimeStatus();
   const { push } = useToast();
   const [roomId, setRoomId] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<string | null>(null);
@@ -99,6 +103,7 @@ export function DashboardPage() {
     }
   }, [rooms, roomId, session.user.user_id]);
 
+  const mappings = useResource(() => api.gestureMappings.list(), []);
   const helpRequests = useResource(() => api.helpRequests.list({ limit: isUser ? 5 : 20 }), [isUser]);
   const controlEvents = useResource(
     () => (watching ? api.controlEvents.list({ limit: 8 }) : Promise.resolve(undefined)),
@@ -154,6 +159,8 @@ export function DashboardPage() {
         </button>
       </div>
 
+      <RecognitionStrip deviceName={deviceName} />
+
       {isUser && (
         <section className="card help-panel" aria-label="도움 요청">
           <HelpButton onCreate={() => help.create()} sending={help.busyId === "create"} />
@@ -186,11 +193,20 @@ export function DashboardPage() {
             <strong className="stat-value">{waitingCount}</strong>
           </div>
         )}
-        <div className="stat">
-          <span className="stat-label">카메라</span>
-          <strong className="stat-value stat-text">{EDGE_STATUS_LABEL[edgeStatus]}</strong>
-        </div>
       </section>
+
+      <div className="grid-2">
+        <SystemStatusCard devices={devices} />
+        <section className="card" aria-labelledby="bindings-title">
+          <div className="card-head">
+            <h2 id="bindings-title">사용 가능한 손동작</h2>
+            {hasRole("ADMIN") && <Link to="/admin" className="link">바꾸기</Link>}
+          </div>
+          <p className="muted small">기기를 손가락으로 가리킨 뒤 아래 손동작을 잠시 유지하세요.</p>
+          {mappings.error && <p className="error-text">{mappings.error}</p>}
+          <GestureBindingList mappings={mappings.data ?? []} />
+        </section>
+      </div>
 
       {watching && (
         <section className="card" aria-labelledby="open-help-title">

@@ -1166,6 +1166,152 @@ legend {
   font-size: 1.6rem;
 }
 
+/* 인식 진행 막대 (HouSign의 트레이 상태 표시를 참고) */
+.recognition {
+  display: grid;
+  gap: 0.6rem;
+}
+.recognition-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.recognition-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.recognition-step .recognition-icon {
+  opacity: 0.45;
+}
+.recognition-step.is-done {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+.recognition-step.is-active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-strong);
+  animation: recognition-pulse 1.2s ease-in-out infinite;
+}
+.recognition-step.is-fail {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.recognition-step:not(.is-off) .recognition-icon {
+  opacity: 1;
+}
+.recognition-message {
+  margin: 0;
+  font-weight: 600;
+}
+@keyframes recognition-pulse {
+  50% {
+    box-shadow: 0 0 0 4px var(--primary-soft);
+  }
+}
+
+/* 제스처 바인딩 (HouSign의 Gesture → Action → Entity 표를 참고) */
+.bindings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.binding {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.binding.disabled {
+  opacity: 0.55;
+}
+.binding-gesture {
+  font-weight: 700;
+}
+.binding-arrow {
+  color: var(--muted);
+}
+.binding-switch {
+  margin-left: auto;
+}
+
+/* 시스템 상태 */
+.system-status {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.system-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 0.6rem;
+}
+.system-row .dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.system-row.tone-ok .dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
+}
+.system-row.tone-warn .dot {
+  background: var(--warning);
+}
+.system-row.tone-bad .dot {
+  background: var(--danger);
+}
+.system-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+.system-detail {
+  grid-column: 2 / -1;
+}
+
+/* 선택된 기기 카드가 깜빡이도록 */
+.device-card.highlighted {
+  animation: device-flash 0.9s ease-in-out 3;
+}
+@keyframes device-flash {
+  50% {
+    box-shadow: 0 0 0 6px var(--primary-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recognition-step.is-active,
+  .device-card.highlighted {
+    animation: none;
+  }
+}
+
 /* 반응형 */
 @media (max-width: 960px) {
   .grid-2,
@@ -1179,6 +1325,14 @@ legend {
 }
 
 @media (max-width: 760px) {
+  .recognition-steps {
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  }
+  .recognition-step {
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.8rem;
+  }
   .topbar-inner {
     flex-wrap: wrap;
     gap: 0.5rem;
