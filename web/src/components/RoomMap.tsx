@@ -1,5 +1,6 @@
 import { type MouseEvent, useRef } from "react";
-import { type Device, DEVICE_STATE_LABEL, deviceIcon, type PointingRegion } from "../types";
+import { type Device, DEVICE_STATE_LABEL, type PointingRegion } from "../types";
+import { DeviceGlyph } from "./DeviceCard";
 
 interface RoomMapProps {
   devices: Device[];
@@ -61,7 +62,9 @@ export function RoomMap({ devices, title, highlightedId, selectedId, onSelect, o
                 onSelect?.(device.device_id);
               }}
             >
-              <span className="map-device-icon" aria-hidden="true">{deviceIcon(device.device_type)}</span>
+              <span className="map-device-icon" aria-hidden="true">
+                <DeviceGlyph type={device.device_type} />
+              </span>
               <span className="map-device-name">{device.name}</span>
             </button>
           );

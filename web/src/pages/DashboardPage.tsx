@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useAuth, useDirectory, useResource, useSession } from "../api/client";
-import { DeviceCard } from "../components/DeviceCard";
-import {
-  applyCommandEvent,
-  ControlEventTable,
-  GestureBindingList,
-  RecognitionPanel,
-  SystemStatusCard,
-} from "../components/DeviceStatus";
+import { DeviceStatusList, Icon } from "../components/DeviceCard";
+import { applyCommandEvent, ControlEventTable, GestureBindingList, LiveControlPanel } from "../components/DeviceStatus";
 import { HelpRequestList, upsertHelpRequest, useHelpActions, useToast } from "../components/HelpRequestList";
 import { RoomMap } from "../components/RoomMap";
 import {
   canWatchHelp,
+  EDGE_STATUS_LABEL,
   EVENT_LABEL,
   formatLatency,
   formatTime,
@@ -49,7 +44,7 @@ function HelpButton({ onCreate, sending }: { onCreate: () => Promise<boolean>; s
   }
   return (
     <button type="button" className="help-button" onClick={() => setConfirming(true)}>
-      <span aria-hidden="true">🆘</span>
+      <Icon name="help" size={40} />
       도움 요청
       <small>누르면 보호자에게 알림이 갑니다</small>
     </button>
@@ -61,11 +56,11 @@ function RecentActivity() {
   const { status } = useRealtimeStatus();
   const { userName, deviceName } = useDirectory();
   return (
-    <section className="card" aria-labelledby="activity-title">
-      <div className="card-head">
+    <section className="panel" aria-labelledby="activity-title">
+      <header className="panel-head">
         <h2 id="activity-title">실시간 활동</h2>
         <span className="muted small">{status === "open" ? "수신 중" : "연결 대기"}</span>
-      </div>
+      </header>
       {recent.length === 0 ? (
         <p className="empty">아직 받은 이벤트가 없습니다.</p>
       ) : (
@@ -140,34 +135,41 @@ export function DashboardPage() {
   const onlineCount = devices.filter((device) => device.connection_status === "ONLINE").length;
   const waitingCount = helpItems.filter((request) => request.status === "CREATED").length;
   const latestMine = isUser ? helpItems[0] : undefined;
+  const { edgeStatus } = useRealtimeStatus();
 
   return (
     <div className="dashboard">
       <div className="page-head">
         <div>
-          <h1>안녕하세요, {session.user.name}님</h1>
-          <p className="muted">
-            {isUser ? "손동작이나 아래 버튼으로 도움을 요청할 수 있어요." : "기기 상태와 도움 요청을 실시간으로 확인합니다."}
-          </p>
+          <h1>대시보드</h1>
+          {/* Carbon 관제 화면처럼 전체 상태를 제목 아래 한 줄로 */}
+          <ul className="summary" aria-label="요약">
+            <li>
+              켜진 기기 <strong>{onCount}</strong>/{devices.length}
+            </li>
+            <li className={onlineCount < devices.length ? "summary-warn" : undefined}>
+              연결된 기기 <strong>{onlineCount}</strong>/{devices.length}
+            </li>
+            {watching && (
+              <li className={waitingCount > 0 ? "summary-alert" : undefined}>
+                도움 요청 대기 <strong>{waitingCount}</strong>
+              </li>
+            )}
+            <li className={edgeStatus === "disconnected" ? "summary-alert" : undefined}>카메라 {EDGE_STATUS_LABEL[edgeStatus]}</li>
+          </ul>
         </div>
         <button
           type="button"
           className="button ghost small"
-          onClick={() => void Promise.all([reload(), helpRequests.reload(), controlEvents.reload()])}
+          onClick={() => void Promise.all([reload(), helpRequests.reload(), controlEvents.reload(), mappings.reload()])}
         >
+          <Icon name="refresh" size={16} />
           새로고침
         </button>
       </div>
 
-      <RecognitionPanel
-        devices={devices}
-        mappings={mappings.data ?? []}
-        roomName={roomName}
-        editLink={hasRole("ADMIN") ? <Link to="/admin" className="button primary small">＋ 손동작 바꾸기</Link> : undefined}
-      />
-
       {isUser && (
-        <section className="card help-panel" aria-label="도움 요청">
+        <section className="panel help-panel" aria-label="도움 요청">
           <HelpButton onCreate={() => help.create()} sending={help.busyId === "create"} />
           {latestMine && (
             <p className="help-latest">
@@ -177,73 +179,40 @@ export function DashboardPage() {
         </section>
       )}
 
-      <section className="stats" aria-label="요약">
-        <div className="stat">
-          <span className="stat-label">켜진 기기</span>
-          <strong className="stat-value">
-            {onCount}
-            <small> / {devices.length}</small>
-          </strong>
-        </div>
-        <div className="stat">
-          <span className="stat-label">연결된 기기</span>
-          <strong className="stat-value">
-            {onlineCount}
-            <small> / {devices.length}</small>
-          </strong>
-        </div>
-        {watching && (
-          <div className={`stat${waitingCount > 0 ? " stat-alert" : ""}`}>
-            <span className="stat-label">확인 대기 도움 요청</span>
-            <strong className="stat-value">{waitingCount}</strong>
-          </div>
-        )}
-      </section>
+      <div className="dash-top">
+        <LiveControlPanel
+          devices={devices}
+          mappings={mappings.data ?? []}
+          roomName={roomName}
+          action={hasRole("ADMIN") ? <Link to="/admin" className="link">손동작 설정</Link> : undefined}
+        />
 
-      <section className="card" aria-labelledby="bindings-title">
-        <div className="card-head">
-          <div>
-            <h2 id="bindings-title">사용 가능한 손동작</h2>
-            <p className="studio-sub">기기를 손가락으로 가리킨 뒤 아래 손동작을 잠시 유지하세요.</p>
-          </div>
-        </div>
-        {mappings.error && <p className="error-text">{mappings.error}</p>}
-        <GestureBindingList mappings={mappings.data ?? []} />
-      </section>
-
-      <div className="grid-2">
-        <SystemStatusCard devices={devices} />
-        {watching ? (
-        <section className="card" aria-labelledby="open-help-title">
-            <div className="card-head">
-              <h2 id="open-help-title">진행 중인 도움 요청</h2>
-              <Link to="/help" className="link">전체 보기</Link>
-            </div>
-            {helpRequests.error && <p className="error-text">{helpRequests.error}</p>}
+        <section className="panel" aria-labelledby="attention-title">
+          <header className="panel-head">
+            <h2 id="attention-title">{watching ? "진행 중인 도움 요청" : "내 도움 요청"}</h2>
+            <Link to="/help" className="link">전체 보기</Link>
+          </header>
+          {helpRequests.error && <p className="error-text">{helpRequests.error}</p>}
+          {watching ? (
             <HelpRequestList
               requests={openHelp}
               userName={userName}
               canChange={help.canChange}
               onChange={help.changeStatus}
               busyId={help.busyId}
-              emptyText="진행 중인 도움 요청이 없습니다."
+              emptyText="진행 중인 도움 요청 없음"
             />
-          </section>
-        ) : (
-        <section className="card" aria-labelledby="my-help-title">
-            <div className="card-head">
-              <h2 id="my-help-title">내 도움 요청</h2>
-              <Link to="/help" className="link">전체 보기</Link>
-            </div>
-            <HelpRequestList requests={helpItems} userName={userName} showUser={false} />
-          </section>
-        )}
+          ) : (
+            <HelpRequestList requests={helpItems} userName={userName} showUser={false} emptyText="보낸 도움 요청 없음" />
+          )}
+        </section>
       </div>
 
-      <div className="grid-2">
-        <section className="card" aria-labelledby="map-title">
-          <div className="card-head">
-            <h2 id="map-title">방 배치도</h2>
+      <section className="panel" aria-labelledby="devices-title">
+        <header className="panel-head">
+          <h2 id="devices-title">기기 상태</h2>
+          <div className="row">
+            {loading && <span className="muted small">불러오는 중…</span>}
             {rooms.length > 1 && (
               <select aria-label="방 선택" value={roomId ?? ""} onChange={(event) => setRoomId(event.target.value)}>
                 {rooms.map((room) => (
@@ -254,44 +223,34 @@ export function DashboardPage() {
               </select>
             )}
           </div>
-          {rooms.length === 0 ? (
-            <p className="empty">
-              등록된 방이 없습니다.{hasRole("ADMIN") && <> <Link to="/mapping">방·기기 설정</Link>에서 추가하세요.</>}
-            </p>
-          ) : (
+        </header>
+        {rooms.length === 0 ? (
+          <p className="empty">
+            등록된 방이 없습니다.{hasRole("ADMIN") && <> <Link to="/mapping">방·기기 설정</Link>에서 추가하세요.</>}
+          </p>
+        ) : (
+          <div className="devices-layout">
             <RoomMap devices={roomDevices} title={roomId ? roomName(roomId) : undefined} highlightedId={highlighted} />
-          )}
-        </section>
-
-        <section className="card" aria-labelledby="devices-title">
-          <div className="card-head">
-            <h2 id="devices-title">기기 상태</h2>
-            {loading && <span className="muted small">불러오는 중…</span>}
+            <DeviceStatusList devices={roomDevices} highlightedId={highlighted} />
           </div>
-          {devices.length === 0 ? (
-            <p className="empty">등록된 기기가 없습니다.</p>
-          ) : (
-            <div className="device-grid">
-              {devices.map((device) => (
-                <DeviceCard
-                  key={device.device_id}
-                  device={device}
-                  roomName={rooms.length > 1 ? roomName(device.room_id) : undefined}
-                  highlighted={device.device_id === highlighted}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="bindings-title">
+        <header className="panel-head">
+          <h2 id="bindings-title">사용 가능한 손동작</h2>
+        </header>
+        {mappings.error && <p className="error-text">{mappings.error}</p>}
+        <GestureBindingList mappings={mappings.data ?? []} />
+      </section>
 
       {watching && (
         <div className="grid-2">
-          <section className="card" aria-labelledby="control-title">
-            <div className="card-head">
+          <section className="panel" aria-labelledby="control-title">
+            <header className="panel-head">
               <h2 id="control-title">최근 기기 제어</h2>
               <Link to="/history" className="link">제어 이력</Link>
-            </div>
+            </header>
             {controlEvents.error && <p className="error-text">{controlEvents.error}</p>}
             <ControlEventTable events={controlEvents.data?.items ?? []} deviceName={deviceName} />
           </section>

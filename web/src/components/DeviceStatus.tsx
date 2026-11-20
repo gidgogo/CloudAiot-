@@ -4,27 +4,24 @@ import {
   COMMAND_SOURCE_LABEL,
   COMMAND_STATUS_LABEL,
   type CommandEventData,
-  CONNECTION_LABEL,
   type ControlEvent,
-  DEVICE_STATE_LABEL,
-  deviceIcon,
   formatLatency,
   type Device,
   EDGE_STATUS_LABEL,
   formatTime,
-  GESTURE_LABEL,
   type GestureAction,
   type GestureMapping,
   LATENCY_TARGET_MS,
   type Paged,
 } from "../types";
-import { type SocketStatus, useRealtimeEvent, useRealtimeStatus } from "../websocket/eventClient";
+import { useRealtimeEvent, useRealtimeStatus } from "../websocket/eventClient";
+import { DeviceGlyph, Icon } from "./DeviceCard";
 
-// HouSign(웹캠 손동작으로 Home Assistant를 제어하는 오픈소스)의 UI에서 가져온 아이디어:
-//  - 편집기의 LEFT hand · Binding Preview · RIGHT hand 3단 구성과 손 뼈대 그림 → RecognitionPanel, HandSkeleton
-//  - 제스처 → 동작 → 대상을 묶은 바인딩 → GestureBindingList
-//  - 제스처가 인식되면 소리로 알려 준다 → SoundToggle
-//  - 연결 설정·상태를 한 화면에 모은다 → SystemStatusCard
+// 손동작 인식부터 기기 제어 결과까지 보여 주는 화면 조각들.
+//  - HandSkeleton: 제스처 판정 규칙대로 손 관절을 그린 그림 (HouSign 편집기 참고)
+//  - LiveControlPanel: 대시보드 '실시간 제어' 패널 하나에 인식 → 기기 → 명령 → 결과를 모은다
+//  - GestureBindingList: 손동작 → 명령 → 대상 목록
+//  - SoundToggle: 인식·성공·실패 효과음
 
 // ---- HandSkeleton ----
 
@@ -125,20 +122,7 @@ export function HandSkeleton({ pose, active = true, size = 240 }: { pose: HandPo
   );
 }
 
-/** 손가락별 "엄지: 펴짐" 칩. 펴진 손가락은 초록. */
-export function FingerChips({ pose, active = true }: { pose: HandPose; active?: boolean }) {
-  return (
-    <ul className={`finger-chips${active ? "" : " inactive"}`} aria-label="손가락 상태">
-      {FINGERS.map(({ key, label }) => (
-        <li key={key} className={`chip${POSE_FINGERS[pose][key] ? " chip-on" : ""}`}>
-          {label}: {POSE_FINGERS[pose][key] ? "펴짐" : "접힘"}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ---- RecognitionPanel ----
+// ---- LiveControlPanel ----
 
 type StepKey = "camera" | "selected" | "gesture" | "command" | "done";
 type StepState = "off" | "active" | "done" | "fail";
@@ -171,28 +155,34 @@ export function poseForAction(action: GestureAction | null, mappings: GestureMap
   return mappings.find((mapping) => mapping.enabled && mapping.action === action)?.gesture ?? "IDLE";
 }
 
-function Pill({ on, children }: { on: boolean; children: string }) {
-  return <span className={`pill${on ? " pill-on" : ""}`}>{children}</span>;
-}
+const ACTION_TARGET: Record<GestureAction, string> = {
+  ON: "가리킨 기기",
+  OFF: "가리킨 기기",
+  HELP: "보호자에게 알림",
+};
 
 interface PanelProps {
   devices: Device[];
   mappings: GestureMapping[];
   roomName: (roomId: string) => string;
-  /** ADMIN이면 손동작 편집 화면으로 가는 버튼을 보여 준다. */
-  editLink?: ReactNode;
+  /** ADMIN이면 손동작 매핑 화면으로 가는 링크 */
+  action?: ReactNode;
 }
 
 /**
- * HouSign 편집기의 3단 구성(LEFT hand · Binding Preview · RIGHT hand)을 옮긴 대시보드 첫 화면.
- * 왼쪽: 카메라가 본 손 모양, 가운데: 지금 인식 단계와 확정된 손동작, 오른쪽: 손가락으로 고른 기기.
+ * 대시보드의 '실시간 제어' 패널.
+ * 왼쪽에 손 관절 그림, 오른쪽에 인식된 동작 · 선택된 기기 · 연결된 명령 · 결과를 한 줄씩 두고,
+ * 아래에 카메라 → 기기 선택 → 제스처 확정 → 명령 전송 → 완료 5단계를 연결선으로 잇는다.
+ * 시연에서 "엄지 올림 → 조명 선택 → 켜기 명령 → 완료" 흐름을 한 영역에서 따라갈 수 있게 한다.
  */
-export function RecognitionPanel({ devices, mappings, roomName, editLink }: PanelProps) {
+export function LiveControlPanel({ devices, mappings, roomName, action: headerAction }: PanelProps) {
   const { edgeStatus } = useRealtimeStatus();
   const [step, setStep] = useState<StepKey>("camera");
   const [failed, setFailed] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
   const [action, setAction] = useState<GestureAction | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [latency, setLatency] = useState<number | null>(null);
 
   const go = (next: StepKey, isFail = false) => {
     setStep(next);
@@ -202,11 +192,12 @@ export function RecognitionPanel({ devices, mappings, roomName, editLink }: Pane
   useRealtimeEvent(["device.selected"], ({ data }) => {
     setTarget(data.device_id);
     setAction(null);
+    setError(null);
+    setLatency(null);
     go("selected");
   });
   useRealtimeEvent(["gesture.confirmed"], ({ data }) => {
-    const confirmed = data.action as GestureAction | null | undefined;
-    setAction(confirmed ?? null);
+    setAction((data.action as GestureAction | null | undefined) ?? null);
     if (typeof data.target_device_id === "string") setTarget(data.target_device_id);
     go("gesture");
   });
@@ -215,8 +206,15 @@ export function RecognitionPanel({ devices, mappings, roomName, editLink }: Pane
     setAction(data.action);
     go("command");
   });
-  useRealtimeEvent(["command.completed"], () => go("done"));
-  useRealtimeEvent(["command.failed"], () => go("done", true));
+  useRealtimeEvent(["command.completed"], ({ data }) => {
+    setLatency(data.latency_ms);
+    go("done");
+  });
+  useRealtimeEvent(["command.failed"], ({ data }) => {
+    setError(data.error_code ?? "알 수 없는 오류");
+    setLatency(data.latency_ms);
+    go("done", true);
+  });
 
   useEffect(() => {
     if (step === "camera") return;
@@ -224,6 +222,8 @@ export function RecognitionPanel({ devices, mappings, roomName, editLink }: Pane
       go("camera");
       setTarget(null);
       setAction(null);
+      setError(null);
+      setLatency(null);
     }, RECOGNITION_RESET_MS);
     return () => window.clearTimeout(timer);
   }, [step, failed]);
@@ -233,110 +233,108 @@ export function RecognitionPanel({ devices, mappings, roomName, editLink }: Pane
   const pose: HandPose = step === "selected" ? "POINTING" : step === "camera" ? "IDLE" : poseForAction(action, mappings);
   const handActive = cameraOn && step !== "camera";
   const device = devices.find((item) => item.device_id === target);
-  const mapping = mappings.find((item) => item.gesture === pose);
+  const extended = FINGERS.filter(({ key }) => POSE_FINGERS[pose][key]).map(({ label }) => label);
+
+  let result: { text: string; tone: "idle" | "active" | "ok" | "bad" } = { text: "대기 중", tone: "idle" };
+  if (step === "selected" || step === "gesture" || step === "command") result = { text: "진행 중", tone: "active" };
+  if (step === "done") {
+    result = failed
+      ? { text: `실패 · ${error}`, tone: "bad" }
+      : { text: `완료${latency !== null ? ` · ${formatLatency(latency)}` : ""}`, tone: "ok" };
+  }
+  if (action === "HELP" && step === "gesture") result = { text: "보호자에게 알림 보냄", tone: "ok" };
 
   return (
-    <div className="studio">
-      <section className="card studio-side" aria-labelledby="hand-title">
-        <div className="studio-head">
-          <div>
-            <h2 id="hand-title">손 인식</h2>
-            <p className="studio-sub">카메라 · {EDGE_STATUS_LABEL[edgeStatus]}</p>
+    <section className="panel live-panel" aria-labelledby="live-title">
+      <header className="panel-head">
+        <div>
+          <h2 id="live-title">실시간 제어</h2>
+          <p className="panel-sub">기기를 손가락으로 가리킨 뒤 손동작을 잠시 유지하면 명령이 실행됩니다.</p>
+        </div>
+        {headerAction}
+      </header>
+
+      <div className="live-body">
+        <figure className="live-hand">
+          <HandSkeleton pose={pose} active={handActive} size={200} />
+          <figcaption>
+            {cameraOn ? `카메라 ${EDGE_STATUS_LABEL[edgeStatus]}` : `카메라 ${EDGE_STATUS_LABEL[edgeStatus]} · 손을 볼 수 없음`}
+            <br />
+            펴진 손가락: {extended.length > 0 ? extended.join(", ") : "없음"}
+          </figcaption>
+        </figure>
+
+        <dl className="live-rows" aria-live="polite">
+          <div className="live-row">
+            <dt>인식된 동작</dt>
+            <dd>
+              <strong>{POSE_LABEL[pose]}</strong>
+              <code>{pose.toLowerCase()}</code>
+            </dd>
           </div>
-          <Pill on={handActive}>{handActive ? "active" : "inactive"}</Pill>
-        </div>
-        <div className="studio-canvas">
-          <HandSkeleton pose={pose} active={handActive} />
-        </div>
-        <FingerChips pose={pose} active={handActive} />
-      </section>
-
-      <section className="card studio-center" aria-labelledby="preview-title">
-        <div className="studio-head">
-          <div>
-            <h2 id="preview-title">인식 미리보기</h2>
-            <p className="studio-sub">기기를 손가락으로 가리킨 뒤 손동작을 잠시 유지하면 명령이 실행됩니다.</p>
+          <div className="live-row">
+            <dt>선택된 기기</dt>
+            <dd>
+              {device ? (
+                <>
+                  <span className={`device-row-icon state-${device.state.toLowerCase()}`}>
+                    <DeviceGlyph type={device.device_type} size={18} />
+                  </span>
+                  <strong>{device.name}</strong>
+                  <small className="muted">
+                    {device.device_id} · {roomName(device.room_id)}
+                  </small>
+                </>
+              ) : (
+                <span className="muted">가리킨 기기 없음</span>
+              )}
+            </dd>
           </div>
-          {editLink}
-        </div>
-
-        <div className="block">
-          <span className="block-label">진행 단계</span>
-          <ol className="steps">
-            {STEPS.map((item, i) => (
-              <li key={item.key} className={`step is-${states[i]}`}>
-                {item.label}
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <div className="block" role="status">
-          <span className="block-label">현재 인식된 손동작</span>
-          <strong className="block-title">{POSE_LABEL[pose]}</strong>
-          <span className="block-code">{pose.toLowerCase()}</span>
-          <small className="block-meta">
-            단계: {STEPS.find((item) => item.key === step)?.label}
-            {failed ? " (실패)" : ""} | 대상: {device ? device.name : "없음"} | 명령: {action ? ACTION_LABEL[action] : "없음"}
-          </small>
-        </div>
-
-        <div className="block">
-          <span className="block-label">연결된 동작</span>
-          {mapping && pose !== "POINTING" ? (
-            <>
-              <strong className="block-title">{ACTION_LABEL[mapping.action]}</strong>
-              <p className="muted small">
-                {GESTURE_LABEL[mapping.gesture]} → {ACTION_LABEL[mapping.action]} → {ACTION_TARGET[mapping.action]}
-                {mapping.enabled ? "" : " (사용 안 함)"}
-              </p>
-            </>
-          ) : (
-            <>
-              <strong className="block-title muted">{pose === "POINTING" ? "기기 고르는 중" : "연결된 동작 없음"}</strong>
-              <p className="muted small">
-                {pose === "POINTING" ? "이제 엄지를 올리거나 내려서 켜고 끄세요." : "등록된 손동작을 하면 여기에 연결된 명령이 보입니다."}
-              </p>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="card studio-side" aria-labelledby="target-title">
-        <div className="studio-head">
-          <div>
-            <h2 id="target-title">선택된 기기</h2>
-            <p className="studio-sub">{device ? `${device.device_id} · ${roomName(device.room_id)}` : "가리킨 기기가 없습니다"}</p>
+          <div className="live-row">
+            <dt>연결된 명령</dt>
+            <dd>
+              {action ? (
+                <>
+                  <strong>{ACTION_LABEL[action]}</strong>
+                  <span className="muted">→ {action === "HELP" ? ACTION_TARGET.HELP : device?.name ?? ACTION_TARGET[action]}</span>
+                </>
+              ) : (
+                <span className="muted">{step === "selected" ? "엄지를 올리거나 내려 켜고 끄세요" : "없음"}</span>
+              )}
+            </dd>
           </div>
-          <Pill on={Boolean(device)}>{device ? "active" : "inactive"}</Pill>
-        </div>
-        <div className={`studio-canvas device-stage${device?.state === "ON" ? " is-on" : ""}`}>
-          <span className="device-stage-icon" aria-hidden="true">
-            {device ? deviceIcon(device.device_type) : "👉"}
-          </span>
-          <strong>{device ? device.name : "기기를 가리켜 보세요"}</strong>
-        </div>
-        <ul className="finger-chips" aria-label="기기 상태">
-          <li className={`chip${device?.state === "ON" ? " chip-on" : ""}`}>
-            상태: {device ? DEVICE_STATE_LABEL[device.state] : "-"}
+          <div className="live-row">
+            <dt>결과</dt>
+            <dd>
+              <span className={`status status-${result.tone}`}>
+                <span className="dot" aria-hidden="true" />
+                {result.text}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <ol className="stepper" aria-label="진행 단계">
+        {STEPS.map((item, i) => (
+          <li key={item.key} className={`stepper-step is-${states[i]}`} aria-current={states[i] === "active" ? "step" : undefined}>
+            <span className="stepper-mark" aria-hidden="true">
+              {states[i] === "done" ? "✓" : states[i] === "fail" ? "!" : i + 1}
+            </span>
+            <span className="stepper-label">
+              {item.label}
+              <span className="sr-only">
+                {states[i] === "done" ? " 완료" : states[i] === "active" ? " 진행 중" : states[i] === "fail" ? " 실패" : ""}
+              </span>
+            </span>
           </li>
-          <li className={`chip${device?.connection_status === "ONLINE" ? " chip-on" : ""}`}>
-            연결: {device ? CONNECTION_LABEL[device.connection_status] : "-"}
-          </li>
-          <li className={`chip${device?.enabled ? " chip-on" : ""}`}>사용: {device ? (device.enabled ? "예" : "아니요") : "-"}</li>
-        </ul>
-      </section>
-    </div>
+        ))}
+      </ol>
+    </section>
   );
 }
 
 // ---- GestureBindingList ----
-
-const ACTION_TARGET: Record<GestureAction, string> = {
-  ON: "가리킨 기기",
-  OFF: "가리킨 기기",
-  HELP: "보호자에게 알림",
-};
 
 const GESTURE_ORDER = ["THUMB_UP", "THUMB_DOWN", "HELP"];
 
@@ -346,7 +344,7 @@ interface BindingProps {
   onChange?: (mapping: GestureMapping, changes: { action?: GestureAction; enabled?: boolean }) => void;
 }
 
-/** 손동작 하나를 뼈대 그림 + 손가락 칩 + "→ 동작 → 대상" 으로 보여 주는 카드 목록. 켜기·끄기·도움 순. */
+/** 손동작 → 명령 → 대상을 한 줄씩 보여 주는 목록. 켜기·끄기·도움 순. */
 export function GestureBindingList({ mappings, onChange }: BindingProps) {
   if (mappings.length === 0) return <p className="empty">등록된 손동작이 없습니다.</p>;
   const sorted = [...mappings].sort((a, b) => GESTURE_ORDER.indexOf(a.gesture) - GESTURE_ORDER.indexOf(b.gesture));
@@ -354,47 +352,44 @@ export function GestureBindingList({ mappings, onChange }: BindingProps) {
     <ul className="bindings">
       {sorted.map((mapping) => (
         <li key={mapping.gesture} className={`binding${mapping.enabled ? "" : " disabled"}`}>
-          <div className="binding-canvas">
-            <HandSkeleton pose={mapping.gesture} active={mapping.enabled} size={120} />
-          </div>
-          <div className="binding-body">
-            <div className="binding-top">
-              <strong className="binding-gesture">{POSE_LABEL[mapping.gesture]}</strong>
-              <Pill on={mapping.enabled}>{mapping.enabled ? "사용" : "사용 안 함"}</Pill>
-            </div>
-            <span className="block-code">{mapping.gesture.toLowerCase()}</span>
-            <div className="binding-flow">
-              <span className="binding-arrow" aria-hidden="true">→</span>
-              {onChange ? (
-                <select
-                  aria-label={`${mapping.gesture} 명령`}
-                  value={mapping.action}
-                  onChange={(event) => onChange(mapping, { action: event.target.value as GestureAction })}
-                >
-                  {(Object.keys(ACTION_LABEL) as GestureAction[]).map((action) => (
-                    <option key={action} value={action}>
-                      {ACTION_LABEL[action]}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <strong className="binding-action">{ACTION_LABEL[mapping.action]}</strong>
-              )}
-              <span className="binding-arrow" aria-hidden="true">→</span>
-              <span className="muted">{ACTION_TARGET[mapping.action]}</span>
-            </div>
-            <FingerChips pose={mapping.gesture} active={mapping.enabled} />
-            {onChange && (
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={mapping.enabled}
-                  onChange={(event) => onChange(mapping, { enabled: event.target.checked })}
-                />
-                <span>이 손동작 사용</span>
-              </label>
+          <HandSkeleton pose={mapping.gesture} active={mapping.enabled} size={56} />
+          <span className="binding-gesture">
+            <strong>{POSE_LABEL[mapping.gesture]}</strong>
+            <code>{mapping.gesture.toLowerCase()}</code>
+          </span>
+          <span className="binding-flow">
+            {onChange ? (
+              <select
+                aria-label={`${mapping.gesture} 명령`}
+                value={mapping.action}
+                onChange={(event) => onChange(mapping, { action: event.target.value as GestureAction })}
+              >
+                {(Object.keys(ACTION_LABEL) as GestureAction[]).map((action) => (
+                  <option key={action} value={action}>
+                    {ACTION_LABEL[action]}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <strong>{ACTION_LABEL[mapping.action]}</strong>
             )}
-          </div>
+            <span className="muted">→ {ACTION_TARGET[mapping.action]}</span>
+          </span>
+          {onChange ? (
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={mapping.enabled}
+                onChange={(event) => onChange(mapping, { enabled: event.target.checked })}
+              />
+              <span>{mapping.enabled ? "사용" : "사용 안 함"}</span>
+            </label>
+          ) : (
+            <span className={`status ${mapping.enabled ? "status-ok" : "status-idle"}`}>
+              <span className="dot" aria-hidden="true" />
+              {mapping.enabled ? "사용" : "사용 안 함"}
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -470,60 +465,9 @@ export function SoundToggle() {
       title={on ? "인식 소리 끄기" : "인식 소리 켜기"}
       onClick={toggle}
     >
-      {on ? "🔊" : "🔇"}
+      <Icon name={on ? "soundOn" : "soundOff"} />
       <span className="sr-only">{on ? "인식 소리 끄기" : "인식 소리 켜기"}</span>
     </button>
-  );
-}
-
-// ---- SystemStatusCard ----
-
-const SOCKET_TEXT: Record<SocketStatus, string> = {
-  connecting: "연결 중",
-  open: "연결됨",
-  reconnecting: "다시 연결 중",
-  unauthorized: "인증 필요",
-  closed: "연결 안 됨",
-};
-
-type Tone = "ok" | "warn" | "bad" | "idle";
-
-function StatusRow({ label, value, tone, detail }: { label: string; value: string; tone: Tone; detail?: string }) {
-  return (
-    <li className={`system-row tone-${tone}`}>
-      <span className="dot" aria-hidden="true" />
-      <span className="system-label">{label}</span>
-      <strong className="system-value">{value}</strong>
-      {detail && <small className="system-detail muted">{detail}</small>}
-    </li>
-  );
-}
-
-/** 실시간 서버·카메라·기기 연결을 한 카드에 모아 보여 준다. */
-export function SystemStatusCard({ devices }: { devices: Device[] }) {
-  const { status, edgeStatus } = useRealtimeStatus();
-  const enabled = devices.filter((device) => device.enabled);
-  const offline = enabled.filter((device) => device.connection_status === "OFFLINE");
-  const socketTone: Tone = status === "open" ? "ok" : status === "unauthorized" ? "bad" : "warn";
-  const edgeTone: Tone = edgeStatus === "connected" ? "ok" : edgeStatus === "disconnected" ? "bad" : "idle";
-  const deviceTone: Tone = enabled.length === 0 ? "idle" : offline.length === 0 ? "ok" : "warn";
-
-  return (
-    <section className="card" aria-labelledby="system-title">
-      <div className="card-head">
-        <h2 id="system-title">시스템 상태</h2>
-      </div>
-      <ul className="system-status">
-        <StatusRow label="실시간 서버" value={SOCKET_TEXT[status]} tone={socketTone} />
-        <StatusRow label="카메라" value={EDGE_STATUS_LABEL[edgeStatus]} tone={edgeTone} />
-        <StatusRow
-          label="기기 연결"
-          value={`${enabled.length - offline.length} / ${enabled.length}`}
-          tone={deviceTone}
-          detail={offline.length > 0 ? `끊김: ${offline.map((device) => device.name).join(", ")}` : undefined}
-        />
-      </ul>
-    </section>
   );
 }
 

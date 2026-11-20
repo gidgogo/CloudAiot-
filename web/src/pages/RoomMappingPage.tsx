@@ -1,12 +1,12 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { api, useDirectory, useResource, useSession } from "../api/client";
+import { DeviceGlyph } from "../components/DeviceCard";
 import { GestureBindingList } from "../components/DeviceStatus";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { findOverlaps, isValidRegion, PointingRegionEditor, RoomMap } from "../components/RoomMap";
 import {
   type Device,
   DEVICE_TYPES,
-  deviceIcon,
   type DeviceInput,
   deviceTypeLabel,
   formatTime,
@@ -304,7 +304,7 @@ export function RoomMappingPage() {
                       {roomDevices.map((device) => (
                         <tr key={device.device_id} className={device.device_id === editingId ? "row-active" : undefined}>
                           <td>
-                            {deviceIcon(device.device_type)} {device.name}
+                            <DeviceGlyph type={device.device_type} size={16} /> {device.name}
                             <small className="muted"> {deviceTypeLabel(device.device_type)}</small>
                           </td>
                           <td><code>{device.device_id}</code></td>
@@ -359,7 +359,7 @@ export function RoomMappingPage() {
                     <select value={draft.device_type} onChange={(event) => setDraft({ ...draft, device_type: event.target.value })}>
                       {DEVICE_TYPES.map((type) => (
                         <option key={type.value} value={type.value}>
-                          {type.icon} {type.label}
+                          {type.label}
                         </option>
                       ))}
                       {!DEVICE_TYPES.some((type) => type.value === draft.device_type) && (

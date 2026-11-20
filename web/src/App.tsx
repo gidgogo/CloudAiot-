@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, DirectoryProvider, useAuth, useSession } from "./api/client";
+import { Icon, type IconName } from "./components/DeviceCard";
 import { SoundToggle } from "./components/DeviceStatus";
 import { HelpAlerts, ToastProvider } from "./components/HelpRequestList";
 import { DashboardPage, HistoryPage } from "./pages/DashboardPage";
@@ -80,19 +81,19 @@ export interface PageRoute {
   element: ReactNode;
   /** 메뉴에 보일 이름. 없으면 메뉴에 넣지 않는다. */
   label?: string;
-  /** 메뉴 알약 버튼 앞 아이콘 */
-  icon?: string;
+  /** 왼쪽 메뉴의 선 아이콘 */
+  icon?: IconName;
   /** 볼 수 있는 역할. 없으면 로그인한 모두. */
   roles?: Role[];
 }
 
 /** 로그인 후 화면 목록. 경로·메뉴·접근 권한을 이 한 곳에서 정한다. */
 export const PAGES: PageRoute[] = [
-  { path: "/", label: "대시보드", icon: "✋", element: <DashboardPage /> },
-  { path: "/help", label: "도움 요청", icon: "🆘", element: <HelpRequestPage /> },
-  { path: "/history", label: "제어 이력", icon: "🕘", roles: ["GUARDIAN", "ADMIN"], element: <HistoryPage /> },
-  { path: "/mapping", label: "방·기기 설정", icon: "🏠", roles: ["ADMIN"], element: <RoomMappingPage /> },
-  { path: "/admin", label: "사용자·매핑 관리", icon: "⚙️", roles: ["ADMIN"], element: <AdminPage /> },
+  { path: "/", label: "대시보드", icon: "dashboard", element: <DashboardPage /> },
+  { path: "/help", label: "도움 요청", icon: "help", element: <HelpRequestPage /> },
+  { path: "/history", label: "제어 이력", icon: "history", roles: ["GUARDIAN", "ADMIN"], element: <HistoryPage /> },
+  { path: "/mapping", label: "방·기기 설정", icon: "home", roles: ["ADMIN"], element: <RoomMappingPage /> },
+  { path: "/admin", label: "사용자·매핑 관리", icon: "users", roles: ["ADMIN"], element: <AdminPage /> },
   { path: "/account", element: <AccountPage /> },
 ];
 
@@ -116,7 +117,8 @@ function NotificationButton() {
       className="button ghost small"
       onClick={async () => setPermission(await Notification.requestPermission())}
     >
-      🔔 브라우저 알림 켜기
+      <Icon name="bell" size={16} />
+      브라우저 알림 켜기
     </button>
   );
 }
@@ -130,46 +132,51 @@ export function Layout() {
   const links = PAGES.filter((page) => page.label && hasAnyRole(role, page.roles));
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${menuOpen ? " menu-open" : ""}`}>
       <a className="skip-link" href="#main">본문으로 건너뛰기</a>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
-            <span className="brand-mark" aria-hidden="true">✋</span>
-            CloudAIoT
-          </NavLink>
-          <button
-            type="button"
-            className="icon-button menu-toggle"
-            aria-expanded={menuOpen}
-            aria-controls="main-nav"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            ☰<span className="sr-only">메뉴</span>
-          </button>
-          <nav id="main-nav" className={`nav${menuOpen ? " open" : ""}`} aria-label="주 메뉴">
-            {links.map((page) => (
-              <NavLink key={page.path} to={page.path} end={page.path === "/"} onClick={() => setMenuOpen(false)}>
-                {page.icon && <span className="nav-icon" aria-hidden="true">{page.icon}</span>}
-                {page.label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="topbar-right">
-            <span className={`live live-${status}`} title={SOCKET_LABEL[status]}>
-              <span className="dot" aria-hidden="true" />
-              <span className="live-label">{SOCKET_LABEL[status]}</span>
-            </span>
-            <SoundToggle />
-            {canWatchHelp(role) && <NotificationButton />}
-            <NavLink to="/account" className="user-chip" title="내 계정">
-              {session.user.name}
-              <small>{ROLE_LABEL[session.user.role]}</small>
+      {/* IBM Carbon UI Shell처럼 왼쪽에 세로 메뉴, 위에는 전역 상태와 조작만 둔다. */}
+      <aside className="sidenav">
+        <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
+          <span className="brand-mark" aria-hidden="true">
+            <Icon name="hand" size={18} />
+          </span>
+          CloudAIoT
+        </NavLink>
+        <nav id="main-nav" className="nav" aria-label="주 메뉴">
+          {links.map((page) => (
+            <NavLink key={page.path} to={page.path} end={page.path === "/"} onClick={() => setMenuOpen(false)}>
+              {page.icon && <Icon name={page.icon} />}
+              {page.label}
             </NavLink>
-            <button type="button" className="button ghost small" onClick={() => void logout()}>
-              로그아웃
-            </button>
-          </div>
+          ))}
+        </nav>
+      </aside>
+      <header className="topbar">
+        <button
+          type="button"
+          className="icon-button menu-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="main-nav"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <Icon name="menu" />
+          <span className="sr-only">메뉴</span>
+        </button>
+        <div className="topbar-right">
+          <span className={`live live-${status}`} title={SOCKET_LABEL[status]}>
+            <span className="dot" aria-hidden="true" />
+            <span className="live-label">{SOCKET_LABEL[status]}</span>
+          </span>
+          <SoundToggle />
+          {canWatchHelp(role) && <NotificationButton />}
+          <NavLink to="/account" className="user-chip" title="내 계정">
+            {session.user.name}
+            <small>{ROLE_LABEL[session.user.role]}</small>
+          </NavLink>
+          <button type="button" className="icon-button" title="로그아웃" onClick={() => void logout()}>
+            <Icon name="logout" />
+            <span className="sr-only">로그아웃</span>
+          </button>
         </div>
       </header>
       <main id="main" className="page">
