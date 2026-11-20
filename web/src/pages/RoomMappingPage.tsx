@@ -703,11 +703,9 @@ export function AdminPage() {
           <p className="muted">계정, 보호자 연결, 제스처와 명령의 연결을 관리합니다.</p>
         </div>
       </div>
+      <MappingsSection />
       <UsersSection />
-      <div className="grid-2">
-        <LinksSection />
-        <MappingsSection />
-      </div>
+      <LinksSection />
     </div>
   );
 }

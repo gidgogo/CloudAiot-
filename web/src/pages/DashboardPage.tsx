@@ -6,7 +6,7 @@ import {
   applyCommandEvent,
   ControlEventTable,
   GestureBindingList,
-  RecognitionStrip,
+  RecognitionPanel,
   SystemStatusCard,
 } from "../components/DeviceStatus";
 import { HelpRequestList, upsertHelpRequest, useHelpActions, useToast } from "../components/HelpRequestList";
@@ -159,7 +159,12 @@ export function DashboardPage() {
         </button>
       </div>
 
-      <RecognitionStrip deviceName={deviceName} />
+      <RecognitionPanel
+        devices={devices}
+        mappings={mappings.data ?? []}
+        roomName={roomName}
+        editLink={hasRole("ADMIN") ? <Link to="/admin" className="button primary small">＋ 손동작 바꾸기</Link> : undefined}
+      />
 
       {isUser && (
         <section className="card help-panel" aria-label="도움 요청">
@@ -195,36 +200,45 @@ export function DashboardPage() {
         )}
       </section>
 
+      <section className="card" aria-labelledby="bindings-title">
+        <div className="card-head">
+          <div>
+            <h2 id="bindings-title">사용 가능한 손동작</h2>
+            <p className="studio-sub">기기를 손가락으로 가리킨 뒤 아래 손동작을 잠시 유지하세요.</p>
+          </div>
+        </div>
+        {mappings.error && <p className="error-text">{mappings.error}</p>}
+        <GestureBindingList mappings={mappings.data ?? []} />
+      </section>
+
       <div className="grid-2">
         <SystemStatusCard devices={devices} />
-        <section className="card" aria-labelledby="bindings-title">
-          <div className="card-head">
-            <h2 id="bindings-title">사용 가능한 손동작</h2>
-            {hasRole("ADMIN") && <Link to="/admin" className="link">바꾸기</Link>}
-          </div>
-          <p className="muted small">기기를 손가락으로 가리킨 뒤 아래 손동작을 잠시 유지하세요.</p>
-          {mappings.error && <p className="error-text">{mappings.error}</p>}
-          <GestureBindingList mappings={mappings.data ?? []} />
-        </section>
-      </div>
-
-      {watching && (
+        {watching ? (
         <section className="card" aria-labelledby="open-help-title">
-          <div className="card-head">
-            <h2 id="open-help-title">진행 중인 도움 요청</h2>
-            <Link to="/help" className="link">전체 보기</Link>
-          </div>
-          {helpRequests.error && <p className="error-text">{helpRequests.error}</p>}
-          <HelpRequestList
-            requests={openHelp}
-            userName={userName}
-            canChange={help.canChange}
-            onChange={help.changeStatus}
-            busyId={help.busyId}
-            emptyText="진행 중인 도움 요청이 없습니다."
-          />
-        </section>
-      )}
+            <div className="card-head">
+              <h2 id="open-help-title">진행 중인 도움 요청</h2>
+              <Link to="/help" className="link">전체 보기</Link>
+            </div>
+            {helpRequests.error && <p className="error-text">{helpRequests.error}</p>}
+            <HelpRequestList
+              requests={openHelp}
+              userName={userName}
+              canChange={help.canChange}
+              onChange={help.changeStatus}
+              busyId={help.busyId}
+              emptyText="진행 중인 도움 요청이 없습니다."
+            />
+          </section>
+        ) : (
+        <section className="card" aria-labelledby="my-help-title">
+            <div className="card-head">
+              <h2 id="my-help-title">내 도움 요청</h2>
+              <Link to="/help" className="link">전체 보기</Link>
+            </div>
+            <HelpRequestList requests={helpItems} userName={userName} showUser={false} />
+          </section>
+        )}
+      </div>
 
       <div className="grid-2">
         <section className="card" aria-labelledby="map-title">
@@ -270,16 +284,6 @@ export function DashboardPage() {
           )}
         </section>
       </div>
-
-      {isUser && (
-        <section className="card" aria-labelledby="my-help-title">
-          <div className="card-head">
-            <h2 id="my-help-title">내 도움 요청</h2>
-            <Link to="/help" className="link">전체 보기</Link>
-          </div>
-          <HelpRequestList requests={helpItems} userName={userName} showUser={false} />
-        </section>
-      )}
 
       {watching && (
         <div className="grid-2">

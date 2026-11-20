@@ -1,58 +1,39 @@
 :root {
-  --bg: #f4f6fa;
-  --surface: #ffffff;
-  --surface-2: #f0f3f8;
-  --border: #dde3ec;
-  --text: #17202e;
-  --muted: #5d6879;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --primary-soft: #e3ecff;
-  --danger: #dc2626;
-  --danger-strong: #b91c1c;
-  --danger-soft: #fde8e8;
-  --warning: #b45309;
-  --warning-soft: #fff4dc;
-  --success: #15803d;
-  --success-soft: #e2f6e9;
-  --on: #f59e0b;
-  --on-soft: #fff3d6;
-  --focus: #2563eb;
-  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 16px rgb(16 24 40 / 6%);
-  --radius: 14px;
-  --radius-sm: 9px;
-  color-scheme: light;
+  /* HouSign 설정 화면처럼 어두운 남색 바탕에 주황 강조를 쓴다. */
+  --bg: #0b1220;
+  --surface: #111a2c;
+  --surface-2: #17223a;
+  --surface-3: #1d2944;
+  --border: #25324d;
+  --border-strong: #34446a;
+  --text: #e8edf6;
+  --muted: #8d99b1;
+  --primary: #f0883e;
+  --primary-strong: #ff9d57;
+  --primary-soft: #3a2616;
+  --on-primary: #1a0f05;
+  --danger: #f05d5d;
+  --danger-strong: #ff7a7a;
+  --danger-soft: #3a1b20;
+  --warning: #f4b350;
+  --warning-soft: #372a12;
+  --success: #62d394;
+  --success-strong: #7ee3a9;
+  --success-soft: #173528;
+  --success-chip: #4fbf7f;
+  --folded: #7f96c8;
+  --on: #f4b350;
+  --on-soft: #372a12;
+  --focus: #ff9d57;
+  --shadow: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 10px 30px rgb(0 0 0 / 35%);
+  --radius: 18px;
+  --radius-sm: 10px;
+  color-scheme: dark;
   font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f141c;
-    --surface: #171d27;
-    --surface-2: #1f2733;
-    --border: #2c3644;
-    --text: #e7ecf3;
-    --muted: #9aa6b8;
-    --primary: #5b8cff;
-    --primary-strong: #7aa2ff;
-    --primary-soft: #1d2a47;
-    --danger: #f05252;
-    --danger-strong: #ff7070;
-    --danger-soft: #3a1c1f;
-    --warning: #f4b350;
-    --warning-soft: #382a12;
-    --success: #4ade80;
-    --success-soft: #14301f;
-    --on: #fbbf24;
-    --on-soft: #3a2f12;
-    --focus: #7aa2ff;
-    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 6px 20px rgb(0 0 0 / 25%);
-    color-scheme: dark;
-  }
 }
 
 *,
@@ -177,6 +158,7 @@ code {
 
 /* 버튼 */
 .button {
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -184,8 +166,7 @@ code {
   min-height: 2.5rem;
   padding: 0.45rem 1rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-weight: 600;
@@ -207,6 +188,8 @@ code {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 .button.primary:hover:not(:disabled) {
   background: var(--primary-strong);
@@ -254,7 +237,7 @@ input,
 select {
   font: inherit;
   color: var(--text);
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   min-height: 2.5rem;
@@ -333,17 +316,20 @@ legend {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem 0;
+  background: linear-gradient(var(--bg) 70%, transparent);
 }
 .topbar-inner {
-  max-width: 1240px;
+  max-width: 1360px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 .brand {
   display: flex;
@@ -360,30 +346,42 @@ legend {
   place-items: center;
   width: 2rem;
   height: 2rem;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--primary);
   color: #fff;
 }
 .nav {
   display: flex;
-  gap: 0.25rem;
+  justify-content: center;
+  gap: 0.5rem;
   flex: 1;
 }
 .nav a {
-  padding: 0.45rem 0.75rem;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.92rem;
   text-decoration: none;
   white-space: nowrap;
 }
 .nav a:hover {
-  background: var(--surface-2);
-  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
 }
 .nav a.active {
-  background: var(--primary-soft);
-  color: var(--primary-strong);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.nav-icon {
+  font-size: 0.95rem;
 }
 .menu-toggle {
   display: none;
@@ -435,7 +433,7 @@ legend {
 }
 
 .page {
-  max-width: 1240px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
 }
@@ -1134,7 +1132,38 @@ legend {
   padding: 1rem;
   background: radial-gradient(circle at 30% 10%, var(--primary-soft), transparent 60%), var(--bg);
 }
+.login-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 1.25rem;
+  width: min(100%, 880px);
+}
+.login-showcase {
+  flex: 1;
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+.login-showcase p {
+  margin: 0;
+}
+.login-showcase .pill {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+}
+.login-showcase .studio-canvas {
+  min-height: 230px;
+  margin: 1rem 0 0.5rem;
+}
 .login-card {
+  flex: none;
   width: min(100%, 400px);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1166,95 +1195,285 @@ legend {
   font-size: 1.6rem;
 }
 
-/* 인식 진행 막대 (HouSign의 트레이 상태 표시를 참고) */
-.recognition {
+/* HouSign 편집기 느낌의 3단 구성: 손 인식 · 인식 미리보기 · 선택된 기기 */
+.studio {
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
 }
-.recognition-steps {
+.studio > .card {
+  margin-bottom: 0;
+}
+.studio-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.studio-head .button {
+  flex: none;
+  white-space: nowrap;
+}
+.studio-head h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+.studio-sub {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.studio-canvas {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.studio-side .studio-head .button {
+  flex: none;
+  white-space: nowrap;
+}
+.studio-head h2 {
+  letter-spacing: 0.01em;
+}
+.pill {
+  flex: none;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.pill-on {
+  color: #0d2418;
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* 손 뼈대 그림 */
+.hand-skeleton {
+  max-width: 100%;
+  height: auto;
+  transition: opacity 0.2s;
+}
+.hand-skeleton.inactive {
+  opacity: 0.55;
+}
+.hand-palm {
+  fill: none;
+  stroke: var(--primary);
+  stroke-opacity: 0.75;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.hand-wrist {
+  stroke: var(--primary);
+  stroke-opacity: 0.75;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.hand-finger polyline {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hand-finger.extended polyline {
+  stroke: var(--primary);
+}
+.hand-finger.extended circle {
+  fill: #ffd6b8;
+}
+.hand-finger.folded polyline {
+  stroke: var(--folded);
+  stroke-opacity: 0.8;
+}
+.hand-finger.folded circle {
+  fill: #d4def5;
+}
+
+/* 손가락·기기 상태 칩 */
+.finger-chips {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.45rem;
 }
-.recognition-step {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.5rem;
+.chip {
+  padding: 0.4rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
   text-align: center;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  white-space: nowrap;
 }
-.recognition-step .recognition-icon {
-  opacity: 0.45;
+.chip-on {
+  background: var(--success-chip);
+  border-color: var(--success-chip);
+  color: #fff;
 }
-.recognition-step.is-done {
+.finger-chips.inactive .chip {
+  opacity: 0.55;
+}
+
+/* 미리보기 안쪽 블록 */
+.block {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 0.85rem;
+}
+.block:last-child {
+  margin-bottom: 0;
+}
+.block-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.block-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.block-code {
+  color: var(--primary-strong);
+  font-size: 0.9rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+.block-meta {
+  color: var(--muted);
+  margin-top: 0.75rem;
+}
+.steps {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.step {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.step.is-done {
   background: var(--success-soft);
   border-color: var(--success);
   color: var(--success);
 }
-.recognition-step.is-active {
-  background: var(--primary-soft);
+.step.is-active {
+  background: var(--primary);
   border-color: var(--primary);
-  color: var(--primary-strong);
-  animation: recognition-pulse 1.2s ease-in-out infinite;
+  color: #fff;
+  animation: step-pulse 1.2s ease-in-out infinite;
 }
-.recognition-step.is-fail {
+.step.is-fail {
   background: var(--danger-soft);
   border-color: var(--danger);
   color: var(--danger);
 }
-.recognition-step:not(.is-off) .recognition-icon {
-  opacity: 1;
-}
-.recognition-message {
-  margin: 0;
-  font-weight: 600;
-}
-@keyframes recognition-pulse {
+@keyframes step-pulse {
   50% {
     box-shadow: 0 0 0 4px var(--primary-soft);
   }
 }
 
-/* 제스처 바인딩 (HouSign의 Gesture → Action → Entity 표를 참고) */
+/* 선택된 기기 무대 */
+.device-stage {
+  gap: 0.5rem;
+  align-content: center;
+  text-align: center;
+}
+.device-stage-icon {
+  font-size: 4.5rem;
+  line-height: 1;
+  filter: grayscale(0.6);
+  opacity: 0.7;
+  transition: filter 0.2s, opacity 0.2s;
+}
+.device-stage.is-on .device-stage-icon {
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--primary) 70%, transparent));
+  opacity: 1;
+}
+
+/* 손동작 카드 */
 .bindings {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
 }
 .binding {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding: 0.7rem 0.85rem;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--surface-2);
 }
 .binding.disabled {
-  opacity: 0.55;
+  opacity: 0.6;
+}
+.binding-canvas {
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.binding-body {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+.binding-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
 }
 .binding-gesture {
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.binding-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 .binding-arrow {
   color: var(--muted);
 }
-.binding-switch {
-  margin-left: auto;
+.binding .finger-chips {
+  grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr));
+}
+.binding .chip {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.4rem;
 }
 
 /* 시스템 상태 */
@@ -1306,14 +1525,28 @@ legend {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .recognition-step.is-active,
+  .step.is-active,
   .device-card.highlighted {
     animation: none;
   }
 }
 
 /* 반응형 */
+@media (max-width: 1100px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .studio-center {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+}
+
 @media (max-width: 960px) {
+  .studio-center {
+    order: 0;
+  }
+  .studio,
   .grid-2,
   .mapping-layout,
   .region-editor {
@@ -1325,13 +1558,11 @@ legend {
 }
 
 @media (max-width: 760px) {
-  .recognition-steps {
-    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  .login-showcase {
+    display: none;
   }
-  .recognition-step {
-    flex-direction: column;
-    gap: 0.15rem;
-    font-size: 0.8rem;
+  .login-shell {
+    justify-content: center;
   }
   .topbar-inner {
     flex-wrap: wrap;

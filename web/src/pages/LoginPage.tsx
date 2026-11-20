@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { api, errorMessage, useAuth, useDirectory, useSession } from "../api/client";
+import { FingerChips, HandSkeleton } from "../components/DeviceStatus";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { formatTime, ROLE_LABEL } from "../types";
 
@@ -30,38 +31,49 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
-      <form className="login-card" onSubmit={submit} aria-labelledby="login-title">
-        <div className="login-brand" aria-hidden="true">✋</div>
-        <h1 id="login-title">CloudAIoT</h1>
-        <p className="muted">손동작으로 기기를 제어하고 도움을 요청하는 AIoT 시스템</p>
-        {notice && !error && <p className="notice" role="status">{notice}</p>}
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <label>
-          이메일
-          <input
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoFocus
-          />
-        </label>
-        <label>
-          비밀번호
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
-        <button type="submit" className="button primary block" disabled={submitting}>
-          {submitting ? "로그인 중…" : "로그인"}
-        </button>
-        <p className="muted small">계정은 관리자에게 요청하세요.</p>
-      </form>
+      <div className="login-shell">
+        <aside className="login-showcase" aria-hidden="true">
+          <span className="pill pill-on">active</span>
+          <div className="studio-canvas">
+            <HandSkeleton pose="POINTING" size={230} />
+          </div>
+          <strong className="block-title">가리키고, 손동작으로</strong>
+          <p className="muted">카메라 앞에서 기기를 가리킨 뒤 엄지를 올리면 켜지고, 내리면 꺼집니다.</p>
+          <FingerChips pose="POINTING" />
+        </aside>
+        <form className="login-card" onSubmit={submit} aria-labelledby="login-title">
+          <div className="login-brand" aria-hidden="true">✋</div>
+          <h1 id="login-title">CloudAIoT</h1>
+          <p className="muted">손동작으로 기기를 제어하고 도움을 요청하는 AIoT 시스템</p>
+          {notice && !error && <p className="notice" role="status">{notice}</p>}
+          {error && <p className="error-text" role="alert">{error}</p>}
+          <label>
+            이메일
+            <input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoFocus
+            />
+          </label>
+          <label>
+            비밀번호
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="button primary block" disabled={submitting}>
+            {submitting ? "로그인 중…" : "로그인"}
+          </button>
+          <p className="muted small">계정은 관리자에게 요청하세요.</p>
+        </form>
+      </div>
     </main>
   );
 }
