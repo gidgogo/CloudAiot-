@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useAuth, useDirectory, useResource, useSession } from "../api/client";
 import { DeviceStatusList, Icon } from "../components/DeviceCard";
-import { applyCommandEvent, ControlEventTable, GestureBindingList, LiveControlPanel } from "../components/DeviceStatus";
+import {
+  applyCommandEvent,
+  ControlEventTable,
+  GestureBindingList,
+  LiveControlPanel,
+  useLiveControl,
+} from "../components/DeviceStatus";
 import { HelpRequestList, upsertHelpRequest, useHelpActions, useToast } from "../components/HelpRequestList";
 import { RoomMap } from "../components/RoomMap";
 import {
@@ -16,8 +22,6 @@ import {
   LATENCY_TARGET_MS,
 } from "../types";
 import { useRealtimeEvent, useRealtimeStatus, useRecentEvents } from "../websocket/eventClient";
-
-const HIGHLIGHT_MS = 6000;
 
 function HelpButton({ onCreate, sending }: { onCreate: () => Promise<boolean>; sending: boolean }) {
   const [confirming, setConfirming] = useState(false);
@@ -88,8 +92,11 @@ export function DashboardPage() {
   const watching = canWatchHelp(session.user.role);
   const { rooms, devices, patchDevice, userName, roomName, deviceName, loading, reload } = useDirectory();
   const { push } = useToast();
+  const { edgeStatus } = useRealtimeStatus();
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
+  // 실시간 제어 패널과 배치도가 같은 "지금 가리킨 기기"를 본다.
+  const live = useLiveControl();
+  const highlighted = live.step === "camera" ? null : live.target;
 
   useEffect(() => {
     if (!roomId && rooms.length > 0) {
@@ -115,9 +122,10 @@ export function DashboardPage() {
       state_updated_at_ms: data.updated_at_ms,
     }),
   );
+  // 다른 방의 기기를 가리키면 그 방 배치도로 바꿔서 선택된 핀이 보이게 한다.
   useRealtimeEvent(["device.selected"], ({ data }) => {
-    setHighlighted(data.device_id);
-    window.setTimeout(() => setHighlighted((current) => (current === data.device_id ? null : current)), HIGHLIGHT_MS);
+    const device = devices.find((item) => item.device_id === data.device_id);
+    if (device) setRoomId(device.room_id);
   });
   useRealtimeEvent(["help.created", "help.updated"], () => void helpRequests.reload());
   useRealtimeEvent(["command.created"], () => void controlEvents.reload());
@@ -135,7 +143,6 @@ export function DashboardPage() {
   const onlineCount = devices.filter((device) => device.connection_status === "ONLINE").length;
   const waitingCount = helpItems.filter((request) => request.status === "CREATED").length;
   const latestMine = isUser ? helpItems[0] : undefined;
-  const { edgeStatus } = useRealtimeStatus();
 
   return (
     <div className="dashboard">
@@ -181,6 +188,7 @@ export function DashboardPage() {
 
       <div className="dash-top">
         <LiveControlPanel
+          live={live}
           devices={devices}
           mappings={mappings.data ?? []}
           roomName={roomName}

@@ -335,26 +335,6 @@ legend {
   background: var(--surface);
   border-right: 1px solid var(--border);
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.3rem 1rem 0.8rem;
-  font-weight: 800;
-  font-size: 1.05rem;
-  color: var(--text);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: #fff;
-}
 .nav {
   display: flex;
   flex-direction: column;
@@ -873,6 +853,9 @@ legend {
   background: var(--success-soft);
   border-color: var(--success);
   color: var(--success);
+}
+span.map-device {
+  cursor: default;
 }
 .map-device.disabled {
   opacity: 0.5;

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, DirectoryProvider, useAuth, useSession } from "./api/client";
 import { Icon, type IconName } from "./components/DeviceCard";
@@ -131,17 +131,21 @@ export function Layout() {
   const role = session.user.role;
   const links = PAGES.filter((page) => page.label && hasAnyRole(role, page.roles));
 
+  // 모바일에서 열린 메뉴는 Esc로도 닫는다.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   return (
     <div className={`app-shell${menuOpen ? " menu-open" : ""}`}>
       <a className="skip-link" href="#main">본문으로 건너뛰기</a>
       {/* IBM Carbon UI Shell처럼 왼쪽에 세로 메뉴, 위에는 전역 상태와 조작만 둔다. */}
       <aside className="sidenav">
-        <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
-          <span className="brand-mark" aria-hidden="true">
-            <Icon name="hand" size={18} />
-          </span>
-          CloudAIoT
-        </NavLink>
         <nav id="main-nav" className="nav" aria-label="주 메뉴">
           {links.map((page) => (
             <NavLink key={page.path} to={page.path} end={page.path === "/"} onClick={() => setMenuOpen(false)}>

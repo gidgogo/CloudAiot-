@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   ACTION_LABEL,
   COMMAND_SOURCE_LABEL,
@@ -13,15 +13,16 @@ import {
   type GestureMapping,
   LATENCY_TARGET_MS,
   type Paged,
+  type RealtimeEvent,
 } from "../types";
 import { useRealtimeEvent, useRealtimeStatus } from "../websocket/eventClient";
 import { DeviceGlyph, Icon } from "./DeviceCard";
 
 // 손동작 인식부터 기기 제어 결과까지 보여 주는 화면 조각들.
 //  - HandSkeleton: 제스처 판정 규칙대로 손 관절을 그린 그림 (HouSign 편집기 참고)
-//  - LiveControlPanel: 대시보드 '실시간 제어' 패널 하나에 인식 → 기기 → 명령 → 결과를 모은다
+//  - useLiveControl / LiveControlPanel: 실시간 이벤트로 인식 → 기기 → 명령 → 결과를 따라가 한 패널에 모은다
 //  - GestureBindingList: 손동작 → 명령 → 대상 목록
-//  - SoundToggle: 인식·성공·실패 효과음
+//  - SoundToggle / playTone: 인식·성공·실패·도움 요청 효과음
 
 // ---- HandSkeleton ----
 
@@ -88,7 +89,7 @@ export function fingerPoints(finger: Finger, extended: boolean): [number, number
   return points;
 }
 
-/** HouSign 편집기처럼 손 뼈대를 그린다. 펴진 손가락은 주황, 접힌 손가락은 푸른 회색. */
+/** HouSign 편집기처럼 손 뼈대를 그린다. 펴진 손가락은 파랑, 접힌 손가락은 회색. */
 export function HandSkeleton({ pose, active = true, size = 240 }: { pose: HandPose; active?: boolean; size?: number }) {
   const fingers = POSE_FINGERS[pose];
   // 엄지 내림은 엄지 올림을 뒤집어 그린다. 가리키기는 오른쪽을 향하게 살짝 기울인다.
@@ -161,7 +162,89 @@ const ACTION_TARGET: Record<GestureAction, string> = {
   HELP: "보호자에게 알림",
 };
 
+/** 지금 진행 중인 인식 한 번의 상태. 대시보드의 패널과 배치도가 같은 값을 본다. */
+export interface LiveState {
+  step: StepKey;
+  failed: boolean;
+  /** 가리킨(또는 명령 대상) 기기 */
+  target: string | null;
+  action: GestureAction | null;
+  error: string | null;
+  latency: number | null;
+}
+
+export const IDLE_LIVE: LiveState = { step: "camera", failed: false, target: null, action: null, error: null, latency: null };
+
+const LIVE_EVENTS = ["device.selected", "gesture.confirmed", "command.created", "command.completed", "command.failed"] as const;
+
+/** 이벤트 하나를 받아 다음 상태를 만든다. 화면과 떼어 놓아 테스트할 수 있게 했다. */
+export function nextLiveState(state: LiveState, event: RealtimeEvent): LiveState {
+  switch (event.event_type) {
+    case "device.selected":
+      // 새로 가리키면 이전 명령 결과는 지운다.
+      return { ...IDLE_LIVE, step: "selected", target: event.data.device_id };
+    case "gesture.confirmed":
+      return {
+        ...state,
+        step: "gesture",
+        failed: false,
+        action: event.data.action ?? null,
+        target: event.data.target_device_id ?? state.target,
+      };
+    case "command.created":
+      return { ...state, step: "command", failed: false, target: event.data.device_id, action: event.data.action };
+    case "command.completed":
+      return { ...state, step: "done", failed: false, target: event.data.device_id, latency: event.data.latency_ms };
+    case "command.failed":
+      return {
+        ...state,
+        step: "done",
+        failed: true,
+        target: event.data.device_id,
+        error: event.data.error_code ?? "알 수 없는 오류",
+        latency: event.data.latency_ms,
+      };
+    default:
+      return state;
+  }
+}
+
+/**
+ * 실시간 이벤트로 인식 진행 상태를 따라간다. 마지막 이벤트 후 RECOGNITION_RESET_MS가 지나면 대기로 돌아간다.
+ * 같은 단계의 이벤트가 다시 와도(예: 같은 기기를 다시 가리킴) 타이머를 새로 시작한다.
+ */
+export function useLiveControl(): LiveState {
+  const [state, setState] = useState<LiveState>(IDLE_LIVE);
+  const [received, setReceived] = useState(0);
+
+  useRealtimeEvent(LIVE_EVENTS, (event) => {
+    setState((current) => nextLiveState(current, event));
+    setReceived((count) => count + 1);
+  });
+
+  useEffect(() => {
+    if (received === 0) return;
+    const timer = window.setTimeout(() => setState(IDLE_LIVE), RECOGNITION_RESET_MS);
+    return () => window.clearTimeout(timer);
+  }, [received]);
+
+  return state;
+}
+
+type Tone = "idle" | "active" | "ok" | "bad";
+
+/** '결과' 줄에 보여 줄 글자와 색. */
+export function liveResult(state: LiveState): { text: string; tone: Tone } {
+  const { step, failed, action, error, latency } = state;
+  if (step === "gesture" && action === "HELP") return { text: "보호자에게 알림 보냄", tone: "ok" };
+  if (step === "done" && failed) return { text: `실패 · ${error ?? "알 수 없는 오류"}`, tone: "bad" };
+  if (step === "done") return { text: `완료${latency !== null ? ` · ${formatLatency(latency)}` : ""}`, tone: "ok" };
+  if (step === "camera") return { text: "대기 중", tone: "idle" };
+  return { text: "진행 중", tone: "active" };
+}
+
 interface PanelProps {
+  live: LiveState;
   devices: Device[];
   mappings: GestureMapping[];
   roomName: (roomId: string) => string;
@@ -175,74 +258,16 @@ interface PanelProps {
  * 아래에 카메라 → 기기 선택 → 제스처 확정 → 명령 전송 → 완료 5단계를 연결선으로 잇는다.
  * 시연에서 "엄지 올림 → 조명 선택 → 켜기 명령 → 완료" 흐름을 한 영역에서 따라갈 수 있게 한다.
  */
-export function LiveControlPanel({ devices, mappings, roomName, action: headerAction }: PanelProps) {
+export function LiveControlPanel({ live, devices, mappings, roomName, action: headerAction }: PanelProps) {
   const { edgeStatus } = useRealtimeStatus();
-  const [step, setStep] = useState<StepKey>("camera");
-  const [failed, setFailed] = useState(false);
-  const [target, setTarget] = useState<string | null>(null);
-  const [action, setAction] = useState<GestureAction | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [latency, setLatency] = useState<number | null>(null);
-
-  const go = (next: StepKey, isFail = false) => {
-    setStep(next);
-    setFailed(isFail);
-  };
-
-  useRealtimeEvent(["device.selected"], ({ data }) => {
-    setTarget(data.device_id);
-    setAction(null);
-    setError(null);
-    setLatency(null);
-    go("selected");
-  });
-  useRealtimeEvent(["gesture.confirmed"], ({ data }) => {
-    setAction((data.action as GestureAction | null | undefined) ?? null);
-    if (typeof data.target_device_id === "string") setTarget(data.target_device_id);
-    go("gesture");
-  });
-  useRealtimeEvent(["command.created"], ({ data }) => {
-    setTarget(data.device_id);
-    setAction(data.action);
-    go("command");
-  });
-  useRealtimeEvent(["command.completed"], ({ data }) => {
-    setLatency(data.latency_ms);
-    go("done");
-  });
-  useRealtimeEvent(["command.failed"], ({ data }) => {
-    setError(data.error_code ?? "알 수 없는 오류");
-    setLatency(data.latency_ms);
-    go("done", true);
-  });
-
-  useEffect(() => {
-    if (step === "camera") return;
-    const timer = window.setTimeout(() => {
-      go("camera");
-      setTarget(null);
-      setAction(null);
-      setError(null);
-      setLatency(null);
-    }, RECOGNITION_RESET_MS);
-    return () => window.clearTimeout(timer);
-  }, [step, failed]);
-
+  const { step, failed, target, action } = live;
   const cameraOn = edgeStatus === "connected";
   const states = stepStates(step, failed, cameraOn);
   const pose: HandPose = step === "selected" ? "POINTING" : step === "camera" ? "IDLE" : poseForAction(action, mappings);
   const handActive = cameraOn && step !== "camera";
   const device = devices.find((item) => item.device_id === target);
   const extended = FINGERS.filter(({ key }) => POSE_FINGERS[pose][key]).map(({ label }) => label);
-
-  let result: { text: string; tone: "idle" | "active" | "ok" | "bad" } = { text: "대기 중", tone: "idle" };
-  if (step === "selected" || step === "gesture" || step === "command") result = { text: "진행 중", tone: "active" };
-  if (step === "done") {
-    result = failed
-      ? { text: `실패 · ${error}`, tone: "bad" }
-      : { text: `완료${latency !== null ? ` · ${formatLatency(latency)}` : ""}`, tone: "ok" };
-  }
-  if (action === "HELP" && step === "gesture") result = { text: "보호자에게 알림 보냄", tone: "ok" };
+  const result = liveResult(live);
 
   return (
     <section className="panel live-panel" aria-labelledby="live-title">
@@ -416,31 +441,51 @@ function writeSoundSetting(on: boolean) {
   }
 }
 
-/** 짧은 "삑" 소리. 파일 없이 Web Audio로 만든다. */
-function beep(context: AudioContext, frequency: number, durationMs = 120) {
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.15, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + durationMs / 1000);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + durationMs / 1000);
+// 효과음은 파일 없이 Web Audio로 만든다. AudioContext는 화면 전체에서 하나만 쓴다.
+let audio: AudioContext | null = null;
+
+function audioContext(): AudioContext | null {
+  try {
+    const Context =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Context) return null;
+    audio ??= new Context();
+    // 브라우저는 사용자가 한 번 누르기 전에는 소리를 막아 두므로 그때마다 깨운다.
+    if (audio.state === "suspended") void audio.resume();
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
+/** 짧은 "삑" 소리. 소리를 낼 수 없는 브라우저에서는 아무것도 하지 않는다. */
+export function playTone(frequency: number, durationMs = 120): void {
+  const context = audioContext();
+  if (!context) return;
+  try {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const end = context.currentTime + durationMs / 1000;
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.15, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, end);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(end);
+  } catch {
+    // 재생이 막혀도 화면 동작에는 영향이 없다.
+  }
 }
 
 /**
  * 상단 바의 소리 켜기/끄기 버튼. 켜져 있으면 제스처 확정·제어 성공·실패 때 서로 다른 소리가 난다.
- * 브라우저는 사용자가 한 번 누르기 전에는 소리를 막으므로, 버튼을 누를 때 AudioContext를 깨운다.
+ * (보호자용 도움 요청 알림음은 놓치면 안 되므로 이 설정과 상관없이 울린다.)
  */
 export function SoundToggle() {
   const [on, setOn] = useState(readSoundSetting);
-  const contextRef = useRef<AudioContext | null>(null);
 
   const play = (frequency: number) => {
-    if (!on || typeof AudioContext === "undefined") return;
-    contextRef.current ??= new AudioContext();
-    if (contextRef.current.state === "suspended") void contextRef.current.resume();
-    beep(contextRef.current, frequency);
+    if (on) playTone(frequency);
   };
 
   useRealtimeEvent(["gesture.confirmed"], () => play(880));
@@ -451,10 +496,8 @@ export function SoundToggle() {
     const next = !on;
     setOn(next);
     writeSoundSetting(next);
-    if (next && typeof AudioContext !== "undefined") {
-      contextRef.current ??= new AudioContext();
-      void contextRef.current.resume();
-    }
+    // 켤 때 누른 순간을 이용해 소리 재생을 허용받는다.
+    if (next) audioContext();
   };
 
   return (

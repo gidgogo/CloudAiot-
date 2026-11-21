@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { api, useDirectory, useResource, useSession } from "../api/client";
-import { DeviceGlyph } from "../components/DeviceCard";
+import { DeviceGlyph, Icon } from "../components/DeviceCard";
 import { GestureBindingList } from "../components/DeviceStatus";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { findOverlaps, isValidRegion, PointingRegionEditor, RoomMap } from "../components/RoomMap";
@@ -202,7 +202,7 @@ export function RoomMappingPage() {
 
       {overlaps.length > 0 && (
         <p className="warning-banner" role="alert">
-          ⚠️ 방향 영역이 겹치는 기기가 있습니다:{" "}
+          <Icon name="warning" size={16} /> 방향 영역이 겹치는 기기가 있습니다:{" "}
           {overlaps.map(([a, b]) => `${a.name}·${b.name}`).join(", ")}. 겹치는 방향을 가리키면 대상을 정하지 못해 명령이 취소됩니다.
         </p>
       )}
