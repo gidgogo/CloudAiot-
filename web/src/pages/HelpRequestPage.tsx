@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, useDirectory, useSession } from "../api/client";
+import { Icon } from "../components/DeviceCard";
 import { HelpRequestList, upsertHelpRequest, useHelpActions } from "../components/HelpRequestList";
 import { HELP_STATUS_LABEL, type HelpRequest, type HelpStatus, type PageMeta } from "../types";
 import { useRealtimeEvent } from "../websocket/eventClient";
@@ -71,7 +72,8 @@ export function HelpRequestPage() {
         </div>
         {role === "USER" && (
           <button type="button" className="button danger" disabled={help.busyId === "create"} onClick={() => void help.create()}>
-            🆘 도움 요청 보내기
+            <Icon name="help" size={16} />
+            도움 요청 보내기
           </button>
         )}
         {role === "ADMIN" && residents.length > 0 && (

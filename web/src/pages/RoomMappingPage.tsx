@@ -1,16 +1,15 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { api, useDirectory, useResource, useSession } from "../api/client";
+import { DeviceGlyph, Icon } from "../components/DeviceCard";
+import { GestureBindingList } from "../components/DeviceStatus";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { findOverlaps, isValidRegion, PointingRegionEditor, RoomMap } from "../components/RoomMap";
 import {
-  ACTION_LABEL,
   type Device,
   DEVICE_TYPES,
-  deviceIcon,
   type DeviceInput,
   deviceTypeLabel,
   formatTime,
-  GESTURE_LABEL,
   type GestureAction,
   type GestureMapping,
   type Role,
@@ -203,7 +202,7 @@ export function RoomMappingPage() {
 
       {overlaps.length > 0 && (
         <p className="warning-banner" role="alert">
-          ⚠️ 방향 영역이 겹치는 기기가 있습니다:{" "}
+          <Icon name="warning" size={16} /> 방향 영역이 겹치는 기기가 있습니다:{" "}
           {overlaps.map(([a, b]) => `${a.name}·${b.name}`).join(", ")}. 겹치는 방향을 가리키면 대상을 정하지 못해 명령이 취소됩니다.
         </p>
       )}
@@ -305,7 +304,7 @@ export function RoomMappingPage() {
                       {roomDevices.map((device) => (
                         <tr key={device.device_id} className={device.device_id === editingId ? "row-active" : undefined}>
                           <td>
-                            {deviceIcon(device.device_type)} {device.name}
+                            <DeviceGlyph type={device.device_type} size={16} /> {device.name}
                             <small className="muted"> {deviceTypeLabel(device.device_type)}</small>
                           </td>
                           <td><code>{device.device_id}</code></td>
@@ -360,7 +359,7 @@ export function RoomMappingPage() {
                     <select value={draft.device_type} onChange={(event) => setDraft({ ...draft, device_type: event.target.value })}>
                       {DEVICE_TYPES.map((type) => (
                         <option key={type.value} value={type.value}>
-                          {type.icon} {type.label}
+                          {type.label}
                         </option>
                       ))}
                       {!DEVICE_TYPES.some((type) => type.value === draft.device_type) && (
@@ -690,47 +689,7 @@ function MappingsSection() {
         검지 포인팅으로 기기를 고른 뒤 아래 제스처를 유지하면 연결된 명령이 실행됩니다. 같은 명령을 두 제스처에 연결할 수 없습니다.
       </p>
       {mappings.error && <p className="error-text">{mappings.error}</p>}
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">제스처</th>
-              <th scope="col">명령</th>
-              <th scope="col">사용</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(mappings.data ?? []).map((mapping) => (
-              <tr key={mapping.gesture}>
-                <td>{GESTURE_LABEL[mapping.gesture] ?? mapping.gesture}</td>
-                <td>
-                  <select
-                    aria-label={`${mapping.gesture} 명령`}
-                    value={mapping.action}
-                    onChange={(event) => void update(mapping, { action: event.target.value as GestureAction })}
-                  >
-                    {(Object.keys(ACTION_LABEL) as GestureAction[]).map((action) => (
-                      <option key={action} value={action}>
-                        {ACTION_LABEL[action]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={mapping.enabled}
-                      onChange={(event) => void update(mapping, { enabled: event.target.checked })}
-                    />
-                    <span>{mapping.enabled ? "사용" : "사용 안 함"}</span>
-                  </label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <GestureBindingList mappings={mappings.data ?? []} onChange={(mapping, changes) => void update(mapping, changes)} />
     </section>
   );
 }
@@ -744,11 +703,9 @@ export function AdminPage() {
           <p className="muted">계정, 보호자 연결, 제스처와 명령의 연결을 관리합니다.</p>
         </div>
       </div>
+      <MappingsSection />
       <UsersSection />
-      <div className="grid-2">
-        <LinksSection />
-        <MappingsSection />
-      </div>
+      <LinksSection />
     </div>
   );
 }
