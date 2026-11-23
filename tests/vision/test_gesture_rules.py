@@ -7,7 +7,16 @@ import pytest
 
 from server.vision.gesture_rules import GestureRuleParameters, classify_gesture
 from shared.types import GestureType
-from tests.vision.hand_poses import fist, hand, open_palm, pointing, rotate, thumb_up
+from tests.vision.hand_poses import (
+    RAISED_THUMB,
+    STRAIGHT_THUMB,
+    TUCKED_THUMB,
+    hand,
+    open_palm,
+    pointing,
+    rotate,
+    v_sign,
+)
 
 
 @pytest.mark.parametrize("angle_deg", [0, 30, 90, 135, 180, 225, 270, 315])
@@ -15,35 +24,37 @@ def test_pointing_in_every_direction(angle_deg):
     assert classify_gesture(rotate(pointing(), angle_deg)) is GestureType.POINTING
 
 
-def test_thumb_up_and_down():
-    assert classify_gesture(thumb_up()) is GestureType.THUMB_UP
-    assert classify_gesture(rotate(thumb_up(), 180)) is GestureType.THUMB_DOWN
+def test_upright_open_palm():
+    assert classify_gesture(open_palm()) is GestureType.OPEN_PALM
 
 
-def test_sideways_thumb_is_unknown():
-    assert classify_gesture(rotate(thumb_up(), 90)) is GestureType.UNKNOWN
-
-
-def test_thumb_tolerance_is_configurable():
-    leaning = rotate(thumb_up(), 40)
-    assert classify_gesture(leaning) is GestureType.THUMB_UP
-    assert classify_gesture(leaning, GestureRuleParameters(vertical_tolerance_deg=30.0)) is GestureType.UNKNOWN
-
-
-def test_upright_open_palm_is_help():
-    assert classify_gesture(open_palm()) is GestureType.HELP
-
-
-def test_open_palm_lying_sideways_is_not_help():
+def test_open_palm_lying_sideways_is_unknown():
     assert classify_gesture(rotate(open_palm(), 90)) is GestureType.UNKNOWN
 
 
-def test_fist_with_tucked_thumb_is_unknown():
-    assert classify_gesture(fist()) is GestureType.UNKNOWN
+def test_upright_tolerance_is_configurable():
+    leaning = rotate(open_palm(), 40)
+    assert classify_gesture(leaning) is GestureType.OPEN_PALM
+    assert classify_gesture(leaning, GestureRuleParameters(vertical_tolerance_deg=30.0)) is GestureType.UNKNOWN
 
 
-def test_v_sign_is_unknown():
-    assert classify_gesture(hand((True, True, False, False))) is GestureType.UNKNOWN
+@pytest.mark.parametrize("angle_deg", [0, 90, 180])
+@pytest.mark.parametrize("thumb", [TUCKED_THUMB, STRAIGHT_THUMB, RAISED_THUMB])
+def test_fist_in_any_direction_ignores_thumb(angle_deg, thumb):
+    assert classify_gesture(rotate(hand((False, False, False, False), thumb), angle_deg)) is GestureType.FIST
+
+
+def test_upright_v_sign():
+    assert classify_gesture(v_sign()) is GestureType.V_SIGN
+    assert classify_gesture(hand((True, True, False, False), STRAIGHT_THUMB)) is GestureType.V_SIGN
+
+
+def test_v_sign_lying_sideways_is_unknown():
+    assert classify_gesture(rotate(v_sign(), 90)) is GestureType.UNKNOWN
+
+
+def test_three_fingers_is_unknown():
+    assert classify_gesture(hand((True, True, True, False))) is GestureType.UNKNOWN
 
 
 @pytest.mark.parametrize("count", [0, 20, 22])

@@ -8,7 +8,7 @@ from server.vision.hand_detector import HandDetection
 from server.vision.pipeline import GesturePipeline
 from shared.constants import SCHEMA_VERSION
 from shared.types import FrameMetadata, GestureType, Handedness
-from tests.vision.hand_poses import pointing, thumb_up
+from tests.vision.hand_poses import open_palm, pointing
 
 FRAME = np.zeros((480, 640, 3), dtype=np.uint8)
 T0 = 1_793_430_000_000
@@ -52,18 +52,18 @@ def test_held_pointing_reports_vector_and_stability():
 
 
 def test_hand_leaving_the_frame_restarts_stability():
-    detector = FakeDetector(thumb_up())
+    detector = FakeDetector(open_palm())
     pipeline = GesturePipeline(detector)
     run(pipeline, 6)
     detector.landmarks = None
     assert pipeline.process(FRAME, metadata(T0 + 600)).stable_frames == 0
-    detector.landmarks = thumb_up()
+    detector.landmarks = open_palm()
     assert pipeline.process(FRAME, metadata(T0 + 700)).stable_frames == 1
 
 
 def test_only_pointing_carries_a_vector():
-    result = GesturePipeline(FakeDetector(thumb_up())).process(FRAME, metadata())
-    assert result.gesture is GestureType.THUMB_UP and result.pointing_vector is None
+    result = GesturePipeline(FakeDetector(open_palm())).process(FRAME, metadata())
+    assert result.gesture is GestureType.OPEN_PALM and result.pointing_vector is None
 
 
 def test_pointing_too_small_for_a_direction_becomes_unknown():
@@ -81,16 +81,16 @@ def test_mirrored_frame_flips_vector_and_handedness():
 
 def test_rotated_frame_is_classified_upright():
     # The camera sends the image turned 90° counterclockwise, so rotation_deg=90 turns it back.
-    sent = [(y, 1.0 - x, z) for x, y, z in thumb_up()]
+    sent = [(y, 1.0 - x, z) for x, y, z in open_palm()]
     result = GesturePipeline(FakeDetector(sent)).process(FRAME, metadata(rotation_deg=90))
-    assert result.gesture is GestureType.THUMB_UP
+    assert result.gesture is GestureType.OPEN_PALM
 
 
 def test_process_jpeg_decodes_in_memory():
     ok, jpeg = cv2.imencode(".jpg", FRAME)
     assert ok
-    result = GesturePipeline(FakeDetector(thumb_up())).process_jpeg(jpeg.tobytes(), metadata())
-    assert result.gesture is GestureType.THUMB_UP
+    result = GesturePipeline(FakeDetector(open_palm())).process_jpeg(jpeg.tobytes(), metadata())
+    assert result.gesture is GestureType.OPEN_PALM
 
 
 def test_process_jpeg_rejects_invalid_frames():

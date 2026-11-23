@@ -153,11 +153,11 @@ class DeviceService:
 
 # --- 제스처와 명령의 연결 관계를 관리한다(SAD 4.1 제스처·명령 매핑 모듈).
 
-MAPPABLE_GESTURES = (GestureType.THUMB_UP.value, GestureType.THUMB_DOWN.value, GestureType.HELP.value)
+MAPPABLE_GESTURES = (GestureType.OPEN_PALM.value, GestureType.FIST.value, GestureType.V_SIGN.value)
 DEFAULT_MAPPINGS = {
-    GestureType.THUMB_UP.value: IntentAction.ON.value,
-    GestureType.THUMB_DOWN.value: IntentAction.OFF.value,
-    GestureType.HELP.value: IntentAction.HELP.value,
+    GestureType.OPEN_PALM.value: IntentAction.ON.value,
+    GestureType.FIST.value: IntentAction.OFF.value,
+    GestureType.V_SIGN.value: IntentAction.HELP.value,
 }
 
 
@@ -173,6 +173,10 @@ class GestureMappingService:
 
     def ensure_defaults(self) -> None:
         timestamp = now_ms()
+        # 예전 제스처(THUMB_UP 등)로 저장된 매핑은 더 이상 인식되지 않고 명령 중복 검사만 막으므로 지운다.
+        for mapping in self.mappings.list():
+            if mapping.gesture not in MAPPABLE_GESTURES:
+                self.mappings.delete(mapping)
         for gesture, action in DEFAULT_MAPPINGS.items():
             if self.mappings.get(gesture) is None:
                 self.session.add(GestureMapping(gesture=gesture, action=action, enabled=True, updated_at_ms=timestamp))

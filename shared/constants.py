@@ -24,7 +24,7 @@ EVENT_TYPES = frozenset({
     "command.failed", "device.state_changed", "help.created", "help.updated",
 })
 FRAME_ACK_STATUSES = frozenset({"PROCESSED", "DROPPED", "INVALID", "ERROR"})
-GESTURES = frozenset({"POINTING", "THUMB_UP", "THUMB_DOWN", "HELP", "UNKNOWN"})
+GESTURES = frozenset({"POINTING", "OPEN_PALM", "FIST", "V_SIGN", "UNKNOWN"})
 INTENT_STATUSES = frozenset({"PENDING", "CONFIRMED", "CANCELLED"})
 HELP_STATUSES = frozenset({"CREATED", "CONFIRMED", "COMPLETED"})
 ROLES = frozenset({"USER", "GUARDIAN", "ADMIN"})

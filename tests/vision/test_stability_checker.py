@@ -12,8 +12,8 @@ def feed(checker, gesture, count, start_ms=T0, step_ms=100):
 
 def test_stable_after_six_frames_and_500ms():
     checker = StabilityChecker()
-    assert not feed(checker, GestureType.THUMB_UP, 5).stable
-    result = checker.update(GestureType.THUMB_UP, T0 + 500)
+    assert not feed(checker, GestureType.OPEN_PALM, 5).stable
+    result = checker.update(GestureType.OPEN_PALM, T0 + 500)
     assert (result.frames, result.hold_ms, result.stable) == (6, 500, True)
 
 
@@ -25,22 +25,22 @@ def test_enough_frames_but_short_hold_is_not_stable():
 def test_different_gesture_starts_a_new_run():
     checker = StabilityChecker()
     feed(checker, GestureType.POINTING, 6)
-    result = checker.update(GestureType.THUMB_UP, T0 + 600)
+    result = checker.update(GestureType.OPEN_PALM, T0 + 600)
     assert (result.frames, result.hold_ms) == (1, 0)
 
 
 def test_unknown_reports_zero_and_restarts_the_run():
     checker = StabilityChecker()
-    feed(checker, GestureType.HELP, 6)
+    feed(checker, GestureType.V_SIGN, 6)
     unknown = checker.update(GestureType.UNKNOWN, T0 + 600)
     assert (unknown.frames, unknown.hold_ms, unknown.stable) == (0, 0, False)
-    assert checker.update(GestureType.HELP, T0 + 700).frames == 1
+    assert checker.update(GestureType.V_SIGN, T0 + 700).frames == 1
 
 
 def test_long_pause_between_frames_restarts_the_run():
     checker = StabilityChecker()
-    feed(checker, GestureType.THUMB_DOWN, 3)
-    result = checker.update(GestureType.THUMB_DOWN, T0 + 200 + 501)
+    feed(checker, GestureType.FIST, 3)
+    result = checker.update(GestureType.FIST, T0 + 200 + 501)
     assert (result.frames, result.hold_ms) == (1, 0)
 
 

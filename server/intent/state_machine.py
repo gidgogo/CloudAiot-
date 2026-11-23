@@ -1,4 +1,4 @@
-"""Target selection state machine for POINTING -> THUMB_UP/DOWN."""
+"""Target selection state machine for POINTING -> OPEN_PALM/FIST."""
 from __future__ import annotations
 
 from dataclasses import dataclass

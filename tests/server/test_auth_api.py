@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from server.app import create_app
 from server.config import Settings
-from server.db.models import Base, ControlEvent, HelpRequestRecord
+from server.db.models import Base, ControlEvent, GestureMapping, HelpRequestRecord
 from server.security import authentication
 from server.security.jwt import ACCESS_COOKIE, CSRF_COOKIE, CSRF_HEADER, create_access_token
 from server.services.control_event_service import DAY_MS, purge_expired
@@ -253,7 +253,7 @@ def test_role_permissions(client, make_user, login, room):
         assert other.patch("/api/v1/rooms/room-01", json={"name": "x"}).status_code == 403
         assert other.post("/api/v1/users", json={"email": "a@b.c", "password": PASSWORD, "name": "a",
                                                  "role": "ADMIN"}).status_code == 403
-        assert other.patch("/api/v1/gesture-mappings/HELP", json={"enabled": False}).status_code == 403
+        assert other.patch("/api/v1/gesture-mappings/V_SIGN", json={"enabled": False}).status_code == 403
 
 
 def test_change_own_password(make_user, login, app):
@@ -336,22 +336,31 @@ def test_role_change_drops_guardian_links(client, make_user):
 
 def test_default_gesture_mappings(client):
     mappings = {m["gesture"]: (m["action"], m["enabled"]) for m in client.get("/api/v1/gesture-mappings").json()["data"]}
-    assert mappings == {"THUMB_UP": ("ON", True), "THUMB_DOWN": ("OFF", True), "HELP": ("HELP", True)}
+    assert mappings == {"OPEN_PALM": ("ON", True), "FIST": ("OFF", True), "V_SIGN": ("HELP", True)}
 
 
 def test_update_gesture_mapping(app, client):
-    conflict = client.patch("/api/v1/gesture-mappings/THUMB_UP", json={"action": "OFF"})
+    conflict = client.patch("/api/v1/gesture-mappings/OPEN_PALM", json={"action": "OFF"})
     assert conflict.status_code == 409
     assert conflict.json()["error"]["code"] == "MAPPING_CONFLICT"
 
-    assert client.patch("/api/v1/gesture-mappings/HELP", json={"enabled": False}).json()["data"]["enabled"] is False
+    assert client.patch("/api/v1/gesture-mappings/V_SIGN", json={"enabled": False}).json()["data"]["enabled"] is False
     assert client.patch("/api/v1/gesture-mappings/POINTING", json={"enabled": False}).status_code == 404
-    assert client.patch("/api/v1/gesture-mappings/HELP", json={"action": "DANCE"}).status_code == 422
+    assert client.patch("/api/v1/gesture-mappings/V_SIGN", json={"action": "DANCE"}).status_code == 422
 
     with app.state.db.session() as session:
         service = GestureMappingService(session)
-        assert service.action_for("THUMB_UP") == IntentAction.ON
-        assert service.action_for("HELP") is None
+        assert service.action_for("OPEN_PALM") == IntentAction.ON
+        assert service.action_for("V_SIGN") is None
+
+
+def test_old_gesture_mappings_are_replaced(app, client):
+    with app.state.db.session() as session:
+        session.add(GestureMapping(gesture="THUMB_UP", action="ON", enabled=True, updated_at_ms=0))
+        session.commit()
+        GestureMappingService(session).ensure_defaults()
+    gestures = {m["gesture"] for m in client.get("/api/v1/gesture-mappings").json()["data"]}
+    assert gestures == {"OPEN_PALM", "FIST", "V_SIGN"}
 
 
 # 보존 기간 ------------------------------------------------------------------

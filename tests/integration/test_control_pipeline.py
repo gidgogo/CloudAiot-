@@ -62,12 +62,12 @@ def gesture(kind, at_ms, vector=None):
     )
 
 
-def test_pointing_then_thumb_publishes_selected_confirmed_and_mqtt_intent(app, device, events):
+def test_pointing_then_open_palm_publishes_selected_confirmed_and_mqtt_intent(app, device, events):
     publisher = CapturingPublisher()
     dispatcher = IntentDispatcher(app.state.db, app.state.events, publisher)
     pipeline = SequenceGesturePipeline([
         gesture(GestureType.POINTING, 1_000, PointingVector(0.5, 0.5, 0.8, 0.5)),
-        gesture(GestureType.THUMB_UP, 1_500),
+        gesture(GestureType.OPEN_PALM, 1_500),
     ])
     processor = FrameSessionProcessor(app.state.db, dispatcher, gesture_pipeline=pipeline)
     metadata = FrameMetadata(width=640, height=480, captured_at_ms=1_000)
