@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useAuth, useDirectory, useResource, useSession } from "../api/client";
-import { DeviceCard } from "../components/DeviceCard";
-import { applyCommandEvent, ControlEventTable } from "../components/DeviceStatus";
+import { DeviceStatusList, Icon } from "../components/DeviceCard";
+import {
+  applyCommandEvent,
+  ControlEventTable,
+  GestureBindingList,
+  LiveControlPanel,
+  useLiveControl,
+} from "../components/DeviceStatus";
 import { HelpRequestList, upsertHelpRequest, useHelpActions, useToast } from "../components/HelpRequestList";
 import { RoomMap } from "../components/RoomMap";
 import {
@@ -16,8 +22,6 @@ import {
   LATENCY_TARGET_MS,
 } from "../types";
 import { useRealtimeEvent, useRealtimeStatus, useRecentEvents } from "../websocket/eventClient";
-
-const HIGHLIGHT_MS = 6000;
 
 function HelpButton({ onCreate, sending }: { onCreate: () => Promise<boolean>; sending: boolean }) {
   const [confirming, setConfirming] = useState(false);
@@ -44,7 +48,7 @@ function HelpButton({ onCreate, sending }: { onCreate: () => Promise<boolean>; s
   }
   return (
     <button type="button" className="help-button" onClick={() => setConfirming(true)}>
-      <span aria-hidden="true">🆘</span>
+      <Icon name="help" size={40} />
       도움 요청
       <small>누르면 보호자에게 알림이 갑니다</small>
     </button>
@@ -56,11 +60,11 @@ function RecentActivity() {
   const { status } = useRealtimeStatus();
   const { userName, deviceName } = useDirectory();
   return (
-    <section className="card" aria-labelledby="activity-title">
-      <div className="card-head">
+    <section className="panel" aria-labelledby="activity-title">
+      <header className="panel-head">
         <h2 id="activity-title">실시간 활동</h2>
         <span className="muted small">{status === "open" ? "수신 중" : "연결 대기"}</span>
-      </div>
+      </header>
       {recent.length === 0 ? (
         <p className="empty">아직 받은 이벤트가 없습니다.</p>
       ) : (
@@ -87,10 +91,12 @@ export function DashboardPage() {
   const isUser = session.user.role === "USER";
   const watching = canWatchHelp(session.user.role);
   const { rooms, devices, patchDevice, userName, roomName, deviceName, loading, reload } = useDirectory();
-  const { edgeStatus } = useRealtimeStatus();
   const { push } = useToast();
+  const { edgeStatus } = useRealtimeStatus();
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
+  // 실시간 제어 패널과 배치도가 같은 "지금 가리킨 기기"를 본다.
+  const live = useLiveControl();
+  const highlighted = live.step === "camera" ? null : live.target;
 
   useEffect(() => {
     if (!roomId && rooms.length > 0) {
@@ -99,6 +105,7 @@ export function DashboardPage() {
     }
   }, [rooms, roomId, session.user.user_id]);
 
+  const mappings = useResource(() => api.gestureMappings.list(), []);
   const helpRequests = useResource(() => api.helpRequests.list({ limit: isUser ? 5 : 20 }), [isUser]);
   const controlEvents = useResource(
     () => (watching ? api.controlEvents.list({ limit: 8 }) : Promise.resolve(undefined)),
@@ -115,9 +122,10 @@ export function DashboardPage() {
       state_updated_at_ms: data.updated_at_ms,
     }),
   );
+  // 다른 방의 기기를 가리키면 그 방 배치도로 바꿔서 선택된 핀이 보이게 한다.
   useRealtimeEvent(["device.selected"], ({ data }) => {
-    setHighlighted(data.device_id);
-    window.setTimeout(() => setHighlighted((current) => (current === data.device_id ? null : current)), HIGHLIGHT_MS);
+    const device = devices.find((item) => item.device_id === data.device_id);
+    if (device) setRoomId(device.room_id);
   });
   useRealtimeEvent(["help.created", "help.updated"], () => void helpRequests.reload());
   useRealtimeEvent(["command.created"], () => void controlEvents.reload());
@@ -140,22 +148,35 @@ export function DashboardPage() {
     <div className="dashboard">
       <div className="page-head">
         <div>
-          <h1>안녕하세요, {session.user.name}님</h1>
-          <p className="muted">
-            {isUser ? "손동작이나 아래 버튼으로 도움을 요청할 수 있어요." : "기기 상태와 도움 요청을 실시간으로 확인합니다."}
-          </p>
+          <h1>대시보드</h1>
+          {/* Carbon 관제 화면처럼 전체 상태를 제목 아래 한 줄로 */}
+          <ul className="summary" aria-label="요약">
+            <li>
+              켜진 기기 <strong>{onCount}</strong>/{devices.length}
+            </li>
+            <li className={onlineCount < devices.length ? "summary-warn" : undefined}>
+              연결된 기기 <strong>{onlineCount}</strong>/{devices.length}
+            </li>
+            {watching && (
+              <li className={waitingCount > 0 ? "summary-alert" : undefined}>
+                도움 요청 대기 <strong>{waitingCount}</strong>
+              </li>
+            )}
+            <li className={edgeStatus === "disconnected" ? "summary-alert" : undefined}>카메라 {EDGE_STATUS_LABEL[edgeStatus]}</li>
+          </ul>
         </div>
         <button
           type="button"
           className="button ghost small"
-          onClick={() => void Promise.all([reload(), helpRequests.reload(), controlEvents.reload()])}
+          onClick={() => void Promise.all([reload(), helpRequests.reload(), controlEvents.reload(), mappings.reload()])}
         >
+          <Icon name="refresh" size={16} />
           새로고침
         </button>
       </div>
 
       {isUser && (
-        <section className="card help-panel" aria-label="도움 요청">
+        <section className="panel help-panel" aria-label="도움 요청">
           <HelpButton onCreate={() => help.create()} sending={help.busyId === "create"} />
           {latestMine && (
             <p className="help-latest">
@@ -165,55 +186,41 @@ export function DashboardPage() {
         </section>
       )}
 
-      <section className="stats" aria-label="요약">
-        <div className="stat">
-          <span className="stat-label">켜진 기기</span>
-          <strong className="stat-value">
-            {onCount}
-            <small> / {devices.length}</small>
-          </strong>
-        </div>
-        <div className="stat">
-          <span className="stat-label">연결된 기기</span>
-          <strong className="stat-value">
-            {onlineCount}
-            <small> / {devices.length}</small>
-          </strong>
-        </div>
-        {watching && (
-          <div className={`stat${waitingCount > 0 ? " stat-alert" : ""}`}>
-            <span className="stat-label">확인 대기 도움 요청</span>
-            <strong className="stat-value">{waitingCount}</strong>
-          </div>
-        )}
-        <div className="stat">
-          <span className="stat-label">카메라</span>
-          <strong className="stat-value stat-text">{EDGE_STATUS_LABEL[edgeStatus]}</strong>
-        </div>
-      </section>
+      <div className="dash-top">
+        <LiveControlPanel
+          live={live}
+          devices={devices}
+          mappings={mappings.data ?? []}
+          roomName={roomName}
+          action={hasRole("ADMIN") ? <Link to="/admin" className="link">손동작 설정</Link> : undefined}
+        />
 
-      {watching && (
-        <section className="card" aria-labelledby="open-help-title">
-          <div className="card-head">
-            <h2 id="open-help-title">진행 중인 도움 요청</h2>
+        <section className="panel" aria-labelledby="attention-title">
+          <header className="panel-head">
+            <h2 id="attention-title">{watching ? "진행 중인 도움 요청" : "내 도움 요청"}</h2>
             <Link to="/help" className="link">전체 보기</Link>
-          </div>
+          </header>
           {helpRequests.error && <p className="error-text">{helpRequests.error}</p>}
-          <HelpRequestList
-            requests={openHelp}
-            userName={userName}
-            canChange={help.canChange}
-            onChange={help.changeStatus}
-            busyId={help.busyId}
-            emptyText="진행 중인 도움 요청이 없습니다."
-          />
+          {watching ? (
+            <HelpRequestList
+              requests={openHelp}
+              userName={userName}
+              canChange={help.canChange}
+              onChange={help.changeStatus}
+              busyId={help.busyId}
+              emptyText="진행 중인 도움 요청 없음"
+            />
+          ) : (
+            <HelpRequestList requests={helpItems} userName={userName} showUser={false} emptyText="보낸 도움 요청 없음" />
+          )}
         </section>
-      )}
+      </div>
 
-      <div className="grid-2">
-        <section className="card" aria-labelledby="map-title">
-          <div className="card-head">
-            <h2 id="map-title">방 배치도</h2>
+      <section className="panel" aria-labelledby="devices-title">
+        <header className="panel-head">
+          <h2 id="devices-title">기기 상태</h2>
+          <div className="row">
+            {loading && <span className="muted small">불러오는 중…</span>}
             {rooms.length > 1 && (
               <select aria-label="방 선택" value={roomId ?? ""} onChange={(event) => setRoomId(event.target.value)}>
                 {rooms.map((room) => (
@@ -224,54 +231,34 @@ export function DashboardPage() {
               </select>
             )}
           </div>
-          {rooms.length === 0 ? (
-            <p className="empty">
-              등록된 방이 없습니다.{hasRole("ADMIN") && <> <Link to="/mapping">방·기기 설정</Link>에서 추가하세요.</>}
-            </p>
-          ) : (
+        </header>
+        {rooms.length === 0 ? (
+          <p className="empty">
+            등록된 방이 없습니다.{hasRole("ADMIN") && <> <Link to="/mapping">방·기기 설정</Link>에서 추가하세요.</>}
+          </p>
+        ) : (
+          <div className="devices-layout">
             <RoomMap devices={roomDevices} title={roomId ? roomName(roomId) : undefined} highlightedId={highlighted} />
-          )}
-        </section>
-
-        <section className="card" aria-labelledby="devices-title">
-          <div className="card-head">
-            <h2 id="devices-title">기기 상태</h2>
-            {loading && <span className="muted small">불러오는 중…</span>}
+            <DeviceStatusList devices={roomDevices} highlightedId={highlighted} />
           </div>
-          {devices.length === 0 ? (
-            <p className="empty">등록된 기기가 없습니다.</p>
-          ) : (
-            <div className="device-grid">
-              {devices.map((device) => (
-                <DeviceCard
-                  key={device.device_id}
-                  device={device}
-                  roomName={rooms.length > 1 ? roomName(device.room_id) : undefined}
-                  highlighted={device.device_id === highlighted}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+        )}
+      </section>
 
-      {isUser && (
-        <section className="card" aria-labelledby="my-help-title">
-          <div className="card-head">
-            <h2 id="my-help-title">내 도움 요청</h2>
-            <Link to="/help" className="link">전체 보기</Link>
-          </div>
-          <HelpRequestList requests={helpItems} userName={userName} showUser={false} />
-        </section>
-      )}
+      <section className="panel" aria-labelledby="bindings-title">
+        <header className="panel-head">
+          <h2 id="bindings-title">사용 가능한 손동작</h2>
+        </header>
+        {mappings.error && <p className="error-text">{mappings.error}</p>}
+        <GestureBindingList mappings={mappings.data ?? []} />
+      </section>
 
       {watching && (
         <div className="grid-2">
-          <section className="card" aria-labelledby="control-title">
-            <div className="card-head">
+          <section className="panel" aria-labelledby="control-title">
+            <header className="panel-head">
               <h2 id="control-title">최근 기기 제어</h2>
               <Link to="/history" className="link">제어 이력</Link>
-            </div>
+            </header>
             {controlEvents.error && <p className="error-text">{controlEvents.error}</p>}
             <ControlEventTable events={controlEvents.data?.items ?? []} deviceName={deviceName} />
           </section>

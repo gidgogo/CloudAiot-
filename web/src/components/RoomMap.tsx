@@ -1,5 +1,6 @@
 import { type MouseEvent, useRef } from "react";
-import { type Device, DEVICE_STATE_LABEL, deviceIcon, type PointingRegion } from "../types";
+import { type Device, DEVICE_STATE_LABEL, type PointingRegion } from "../types";
+import { DeviceGlyph } from "./DeviceCard";
 
 interface RoomMapProps {
   devices: Device[];
@@ -41,38 +42,55 @@ export function RoomMap({ devices, title, highlightedId, selectedId, onSelect, o
         {title && <span className="room-map-title">{title}</span>}
         {devices.length === 0 && !draftPosition && <span className="room-map-empty">등록된 기기가 없습니다</span>}
         <div className="room-map-area" ref={area}>
-        {devices.map((device) => {
-          const classes = [
-            "map-device",
-            `state-${device.state.toLowerCase()}`,
-            device.device_id === highlightedId ? "highlighted" : "",
-            device.device_id === selectedId ? "selected" : "",
-            device.enabled ? "" : "disabled",
-          ].join(" ");
-          return (
-            <button
-              key={device.device_id}
-              type="button"
-              className={classes}
-              style={{ left: `${device.map_position.x * 100}%`, top: `${device.map_position.y * 100}%` }}
-              title={`${device.name} · ${DEVICE_STATE_LABEL[device.state]}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect?.(device.device_id);
-              }}
-            >
-              <span className="map-device-icon" aria-hidden="true">{deviceIcon(device.device_type)}</span>
-              <span className="map-device-name">{device.name}</span>
-            </button>
-          );
-        })}
-        {draftPosition && (
-          <span
-            className="map-draft"
-            style={{ left: `${draftPosition.x * 100}%`, top: `${draftPosition.y * 100}%` }}
-            aria-label="새 위치"
-          />
-        )}
+          {devices.map((device) => {
+            const classes = [
+              "map-device",
+              `state-${device.state.toLowerCase()}`,
+              device.device_id === highlightedId ? "highlighted" : "",
+              device.device_id === selectedId ? "selected" : "",
+              device.enabled ? "" : "disabled",
+            ].join(" ");
+            const style = { left: `${device.map_position.x * 100}%`, top: `${device.map_position.y * 100}%` };
+            const label = `${device.name} · ${DEVICE_STATE_LABEL[device.state]}`;
+            const content = (
+              <>
+                <span className="map-device-icon" aria-hidden="true">
+                  <DeviceGlyph type={device.device_type} />
+                </span>
+                <span className="map-device-name">{device.name}</span>
+              </>
+            );
+            // 누를 일이 없는 대시보드 배치도에서는 버튼이 아니라 그림으로 둔다(키보드 이동 순서에서 빠짐).
+            if (!onSelect) {
+              return (
+                <span key={device.device_id} className={classes} style={style} title={label}>
+                  {content}
+                </span>
+              );
+            }
+            return (
+              <button
+                key={device.device_id}
+                type="button"
+                className={classes}
+                style={style}
+                title={label}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(device.device_id);
+                }}
+              >
+                {content}
+              </button>
+            );
+          })}
+          {draftPosition && (
+            <span
+              className="map-draft"
+              style={{ left: `${draftPosition.x * 100}%`, top: `${draftPosition.y * 100}%` }}
+              aria-label="새 위치"
+            />
+          )}
         </div>
       </div>
       {onPick && <figcaption className="muted">배치도를 눌러 위치를 정합니다. 웹 표시용이며 포인팅 판정에는 쓰지 않습니다.</figcaption>}

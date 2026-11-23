@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { api, errorMessage, useAuth, useDirectory, useSession } from "../api/client";
+import { Icon } from "../components/DeviceCard";
 import { useAction, useToast } from "../components/HelpRequestList";
 import { formatTime, ROLE_LABEL } from "../types";
 
@@ -31,7 +32,9 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={submit} aria-labelledby="login-title">
-        <div className="login-brand" aria-hidden="true">✋</div>
+        <div className="login-brand" aria-hidden="true">
+          <Icon name="hand" size={26} />
+        </div>
         <h1 id="login-title">CloudAIoT</h1>
         <p className="muted">손동작으로 기기를 제어하고 도움을 요청하는 AIoT 시스템</p>
         {notice && !error && <p className="notice" role="status">{notice}</p>}

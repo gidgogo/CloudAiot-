@@ -12,6 +12,8 @@ import {
   type HelpStatus,
 } from "../types";
 import { useRealtimeEvent, useRealtimeStatus } from "../websocket/eventClient";
+import { Icon } from "./DeviceCard";
+import { playTone } from "./DeviceStatus";
 
 interface Props {
   requests: HelpRequest[];
@@ -150,7 +152,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 </button>
               )}
               <button type="button" className="icon-button" aria-label="알림 닫기" onClick={() => dismiss(toast.id)}>
-                ✕
+                <Icon name="close" size={16} />
               </button>
             </div>
           </div>
@@ -247,25 +249,6 @@ export function upsertHelpRequest(items: HelpRequest[], request: HelpRequest): H
 
 const BASE_TITLE = "CloudAIoT 대시보드";
 
-function beep(): void {
-  try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const context = new AudioCtx();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.15, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.6);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.6);
-    oscillator.onended = () => void context.close();
-  } catch {
-    // 브라우저가 소리 재생을 막으면 무시한다.
-  }
-}
-
 /**
  * 보호자·관리자에게 새 도움 요청을 즉시 알린다.
  * 화면 알림(닫을 때까지 유지), 소리, 브라우저 알림(허용한 경우), 탭 제목의 대기 건수.
@@ -307,12 +290,13 @@ export function HelpAlerts() {
     const name = userName(event.data.user_id);
     push({
       tone: "danger",
-      title: `🚨 ${name}님이 도움을 요청했습니다`,
+      title: `${name}님이 도움을 요청했습니다`,
       message: "도움 요청 화면에서 확인해 주세요.",
       sticky: true,
       action: { label: "확인하러 가기", onClick: () => navigate("/help") },
     });
-    beep();
+    // 놓치면 안 되는 알림이라 효과음 설정과 상관없이 길게 울린다.
+    playTone(880, 600);
     if ("Notification" in window && Notification.permission === "granted") {
       try {
         new Notification("도움 요청", { body: `${name}님이 도움을 요청했습니다.`, tag: event.data.request_id });

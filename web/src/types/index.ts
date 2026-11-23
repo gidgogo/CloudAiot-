@@ -146,6 +146,12 @@ export interface HelpEventData {
   status: HelpStatus;
 }
 
+/** 엣지가 제스처를 확정했을 때(server/integration_pipeline.py). HELP면 target_device_id가 없을 수 있다. */
+export interface GestureConfirmedData {
+  action: GestureAction | null;
+  target_device_id: string | null;
+}
+
 export type CommandEventData = Pick<
   ControlEvent,
   "command_id" | "device_id" | "action" | "status" | "result" | "error_code" | "latency_ms"
@@ -156,7 +162,7 @@ export interface EventDataMap {
   "edge.connected": Record<string, unknown>;
   "edge.disconnected": Record<string, unknown>;
   "device.selected": { device_id: string; device_name?: string };
-  "gesture.confirmed": Record<string, unknown>;
+  "gesture.confirmed": GestureConfirmedData;
   "command.created": CommandEventData;
   "command.completed": CommandEventData;
   "command.failed": CommandEventData;
@@ -186,29 +192,24 @@ export const HELP_STATUS_LABEL: Record<HelpStatus, string> = { CREATED: "확인 
 export const HELP_SOURCE_LABEL: Record<HelpSource, string> = { GESTURE: "손동작", WEB: "웹" };
 export const COMMAND_STATUS_LABEL: Record<CommandStatus, string> = { PENDING: "응답 대기", COMPLETED: "성공", FAILED: "실패" };
 export const COMMAND_SOURCE_LABEL: Record<string, string> = { GESTURE: "손동작", WEB: "웹", SYSTEM: "시스템" };
-export const GESTURE_LABEL: Record<MappableGesture, string> = { THUMB_UP: "엄지 올림 👍", THUMB_DOWN: "엄지 내림 👎", HELP: "도움 요청 손동작 ✋" };
 export const ACTION_LABEL: Record<GestureAction, string> = { ON: "켜기", OFF: "끄기", HELP: "도움 요청" };
 export const EDGE_STATUS_LABEL = { unknown: "신호 대기", connected: "연결됨", disconnected: "연결 끊김" } as const;
 export const ROLES = Object.keys(ROLE_LABEL) as Role[];
 /** NFR-01: 유효 제스처 확정부터 기기 동작까지 2초 이내 */
 export const LATENCY_TARGET_MS = 2000;
 
-export const DEVICE_TYPES: { value: string; label: string; icon: string }[] = [
-  { value: "LIGHT", label: "조명", icon: "💡" },
-  { value: "FAN", label: "선풍기", icon: "🌀" },
-  { value: "TV", label: "TV", icon: "📺" },
-  { value: "AIR_CONDITIONER", label: "에어컨", icon: "❄️" },
-  { value: "HEATER", label: "난방기", icon: "🔥" },
-  { value: "OUTLET", label: "콘센트", icon: "🔌" },
-  { value: "OTHER", label: "기타", icon: "⚙️" },
+export const DEVICE_TYPES: { value: string; label: string }[] = [
+  { value: "LIGHT", label: "조명" },
+  { value: "FAN", label: "선풍기" },
+  { value: "TV", label: "TV" },
+  { value: "AIR_CONDITIONER", label: "에어컨" },
+  { value: "HEATER", label: "난방기" },
+  { value: "OUTLET", label: "콘센트" },
+  { value: "OTHER", label: "기타" },
 ];
 
 export function deviceTypeLabel(type: string): string {
   return DEVICE_TYPES.find((item) => item.value === type)?.label ?? type;
-}
-
-export function deviceIcon(type: string): string {
-  return DEVICE_TYPES.find((item) => item.value === type)?.icon ?? "⚙️";
 }
 
 export const EVENT_LABEL: Record<EventType, string> = {
