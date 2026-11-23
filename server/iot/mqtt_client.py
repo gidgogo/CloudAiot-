@@ -88,7 +88,9 @@ class MqttBridge:
         timer.start()
 
     def _on_connect(self, client, _userdata, _flags, reason_code, _properties=None) -> None:
-        if int(reason_code) != 0:
+        is_failure = getattr(reason_code, "is_failure", None)
+        connection_failed = bool(is_failure) if is_failure is not None else int(reason_code) != 0
+        if connection_failed:
             log.error("MQTT connection failed reason_code=%s", reason_code)
             return
         prefix = f"aiot/{MQTT_API_VERSION}/{self.home_id}/+"

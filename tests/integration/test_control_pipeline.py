@@ -3,6 +3,8 @@
 import json
 from types import SimpleNamespace
 
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.reasoncodes import ReasonCode
 from server.db.models import ControlEvent, Device
 from server.integration_pipeline import FrameSessionProcessor, IntentDispatcher
 from server.iot.mqtt_client import MqttBridge
@@ -126,6 +128,33 @@ class FakeMqttClient:
 
 def message(topic, payload):
     return SimpleNamespace(topic=topic, payload=json.dumps(payload).encode())
+
+
+def connack_reason(name):
+    return ReasonCode(PacketTypes.CONNACK, name)
+
+
+def test_mqtt_bridge_accepts_paho_v2_success_reason_code(app, events):
+    client = FakeMqttClient()
+    bridge = MqttBridge(app.state.db, events, host="mqtt", home_id="home-01", client=client)
+
+    bridge._on_connect(client, None, None, connack_reason("Success"))
+
+    assert client.subscriptions == [
+        ("aiot/v1/home-01/+/ack", 1),
+        ("aiot/v1/home-01/+/state", 1),
+        ("aiot/v1/home-01/+/status", 1),
+    ]
+
+
+def test_mqtt_bridge_rejects_paho_v2_failure_reason_code(app, events, caplog):
+    client = FakeMqttClient()
+    bridge = MqttBridge(app.state.db, events, host="mqtt", home_id="home-01", client=client)
+
+    bridge._on_connect(client, None, None, connack_reason("Not authorized"))
+
+    assert client.subscriptions == []
+    assert "MQTT connection failed" in caplog.text
 
 
 def test_mqtt_bridge_records_command_ack_state_status_and_events(app, device, events):
