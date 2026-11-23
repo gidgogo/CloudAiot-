@@ -135,5 +135,5 @@ async def frame_socket(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     finally:
-        await asyncio.to_thread(processor.close)
+        processor.close()
         websocket.app.state.events.publish("edge.disconnected", {"edge_id": edge_id})
