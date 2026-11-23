@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class IntentParameters:
-    selection_timeout_ms: int = 3000  # how long a pointed device stays selected without a thumb gesture
+    selection_timeout_ms: int = 3000  # selection expires this long after the last valid pointing at the device
     min_stable_frames: int = 6  # a gesture must be seen in at least this many consecutive frames
     min_hold_ms: int = 500  # and held for at least this long before it can select or confirm
     max_angle_delta_deg: float = 15.0  # moving further than this from the selected angle is DIRECTION_CHANGED

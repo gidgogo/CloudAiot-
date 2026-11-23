@@ -7,7 +7,7 @@
 
 | 값 | 결정 | 위치 |
 | --- | --- | --- |
-| 대상 선택 유지 시간 | 3000ms | `IntentParameters.selection_timeout_ms` |
+| 대상 선택 유지 시간 | 3000ms. 최초 선택 시점이 아니라 **마지막 유효 포인팅 시점부터** 셈 | `IntentParameters.selection_timeout_ms` |
 | 안정화 프레임 | 6프레임 이상 (AI A의 `stability_checker.py`와 같은 값) | `min_stable_frames` |
 | 제스처 유지 시간 | 500ms 이상 (AI A와 같은 값) | `min_hold_ms` |
 | 선택 중 방향 변화 허용 | 15° (정확히 15°는 유지, 넘으면 취소) | `max_angle_delta_deg` |
@@ -21,7 +21,9 @@
 - `min_angle_deg > max_angle_deg`인 영역은 ±180°를 넘는 범위로 봄(예: 170 ~ -170).
 - 영역 경계는 포함함. 경계가 맞닿은 두 기기는 그 각도에서 `AMBIGUOUS_TARGET`이 됨. `enabled=false` 기기는 매칭에서 뺌.
 - 선택 중 방향이 바뀌면 `DIRECTION_CHANGED`로 취소만 하고, 새 대상은 다음 POINTING 프레임에서 고름.
+- 선택한 기기를 계속 가리키면(방향 변화 15° 이내) 선택 만료 시각이 그 프레임부터 다시 시작됨. 가리키고 있는 동안 만료 → 재선택이 3초마다 반복되어 PENDING·취소 결과가 쏟아지는 것을 막고, 손을 거둔 뒤 엄지를 들 시간을 주기 위함. 가리키기만으로는 기기가 동작하지 않으므로 선택이 오래 유지돼도 위험하지 않음.
 - 같은 제스처가 이어지는 동안 CONFIRMED는 한 번만 나옴. 확정하면 선택을 지움.
+- `action`은 CONFIRMED에만 넣음. PENDING(대상만 고름)과 CANCELLED(취소 사유 5종 모두, 선택 없이 엄지를 든 경우 포함)는 `action=null`임. 받는 쪽이 선택이나 취소를 도움 요청으로 착각하지 않게 하기 위함.
 - HELP를 확정하면 기기 선택도 지움(직후 엄지로 기기가 켜지지 않게 하기 위함).
 - 확정(CONFIRMED)된 결과만 지연시간을 기록함(NFR-01).
 - 잘못된 GestureResult(버전이 "1.0"이 아님, 제스처 값 오류, POINTING인데 벡터 없음, 좌표가 0~1 밖)는 처리하지 않고 경고 로그만 남김.
@@ -32,7 +34,7 @@
 | --- | --- |
 | 웹·통합 | `INVALID_GESTURE`는 "매핑이 꺼진 제스처로 확정하려 할 때"만 사용함. 엔진은 `action_for(gesture)` 함수를 받으며, web-app의 `GestureMappingService.action_for`와 모양이 같음. |
 | 웹·통합 | 기기 위치가 바뀌면 `IntentEngine.update_regions(...)` 호출이 필요함. |
-| 통합 | PENDING·CANCELLED 결과의 `action`이 `HELP`로 나감(`IntentResult` 기본값 때문). `action`을 null로 허용하려면 스키마와 `IntentResult`를 같이 바꿔야 해서 합의가 필요함. 그 전까지는 `status`를 먼저 확인해야 함. |
+| 통합 | PENDING·CANCELLED 결과의 `action`은 `null`로 냄(2026-11-16 통합 담당과 합의, 엔진 반영함). CONFIRMED만 action이 있음. `shared`의 `IntentResult.action` 타입과 intent-result 스키마를 null 허용으로 바꾸는 일은 통합 담당이 진행함. |
 | 통합 | `command_from_intent`(`server/iot/command_service.py`)가 `status`를 보지 않음. 파이프라인에서 CONFIRMED만 넘기거나 함수에서 status 검사가 필요함. |
 | AI A | `mirrored`, `rotation_deg` 보정을 누가 할지 정해야 함. A가 랜드마크 단계에서 반영하는 쪽을 제안함. 90°·270° 회전이면 B에 넘기는 프레임 가로·세로도 바뀐 값이어야 함. |
 | AI A | 손이 사라질 때 `gesture=UNKNOWN`, `stable_frames=0`인 결과가 필요함. 없으면 HELP를 다시 요청할 수 없음. |

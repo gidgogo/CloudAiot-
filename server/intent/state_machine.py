@@ -29,7 +29,7 @@ class SelectionStateMachine:
     max_angle_delta_deg: float = IntentParameters.max_angle_delta_deg
     state: IntentState = IntentState.IDLE
     target_device_id: str | None = None
-    selected_at_ms: int = 0
+    selected_at_ms: int = 0  # timeout start: the first selection, moved forward by keep_alive (last valid pointing)
     selected_angle_deg: float | None = None
     last_cancel_reason: str | None = None
 

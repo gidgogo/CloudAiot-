@@ -25,7 +25,7 @@ engine = IntentEngine(
 | `regions` | 기기 방향 영역(스펙 7.4 `pointing_region`). `DeviceRegion(device_id, min_angle_deg, max_angle_deg, enabled=True)`. `min > max`면 ±180°를 넘는 범위. 각도는 오른쪽 0°, 아래 +90° |
 | `frame_width`, `frame_height` | 프레임 크기 기본값. 각도 계산에 화면 비율이 반영됨(스펙 4.3) |
 | `action_for` | `GestureType → IntentAction \| None`. `None`을 돌려주면 그 제스처는 꺼진 매핑이라 `INVALID_GESTURE`로 취소함. web-app의 `GestureMappingService.action_for`와 모양이 같음 |
-| `parameters` | `IntentParameters`. 선택 유지 3000ms, 안정 6프레임, 유지 500ms, 방향 변화 15°, HELP 쿨다운 5초 |
+| `parameters` | `IntentParameters`. 선택 유지 3000ms(마지막 포인팅부터), 안정 6프레임, 유지 500ms, 방향 변화 15°, HELP 쿨다운 5초 |
 
 ## 2. 프레임마다 `consume`
 
@@ -46,15 +46,17 @@ if result is not None:
 
 | status | 의미 | 파이프라인이 할 일 |
 | --- | --- | --- |
-| `PENDING` | POINTING으로 기기가 선택됨. `target_device_id`에 기기 ID | 웹 이벤트 `device.selected`(스펙 9)의 근거. MQTT 명령은 만들지 않음 |
+| `PENDING` | POINTING으로 기기가 선택됨. `target_device_id`에 기기 ID, `action`은 `None` | 웹 이벤트 `device.selected`(스펙 9)의 근거. MQTT 명령은 만들지 않음 |
 | `CONFIRMED` + `ON`/`OFF` | 엄지 제스처로 확정. `target_device_id`, `confirmed_at_ms` 있음 | `command_from_intent`로 MQTT 명령 생성(스펙 11). `gesture.confirmed` 이벤트의 근거 |
 | `CONFIRMED` + `HELP` | HELP 확정. `target_device_id`는 `None` | MQTT로 보내지 않음. 도움 요청 1건 생성(스펙 10) |
-| `CANCELLED` | 취소됨. `cancel_reason`에 사유 | 명령을 만들지 않음. 필요하면 사용자에게 알림 |
+| `CANCELLED` | 취소됨. `cancel_reason`에 사유, `action`은 `None` | 명령을 만들지 않음. 필요하면 사용자에게 알림 |
 
 주의:
-- `PENDING`, `CANCELLED` 결과의 `action`은 `HELP`로 나갈 수 있음(`IntentResult` 기본값 때문). **`action`만 보고 도움 요청으로 처리하면 안 되고 `status`를 먼저 확인해야 함.** 엄지 제스처가 취소될 때만 시도한 ON/OFF가 들어감.
+- `action`은 CONFIRMED에만 들어감(ON/OFF/HELP). `PENDING`, `CANCELLED`는 `action=None`(JSON `null`)임. 선택 없이 엄지를 들어 취소될 때도 `None`임. 그래도 처리할 때는 `status`를 먼저 확인할 것.
+  - 통합 담당과 합의한 형태(2026-11-16). `shared`의 `IntentResult.action` 타입과 intent-result 스키마는 통합 담당이 null을 허용하도록 정리할 예정임.
 - 결과의 `correlation_id`는 그 결과를 만든 프레임의 값임. 명령과 도움 요청까지 그대로 이어서 쓰면 추적됨.
 - 같은 제스처가 이어지는 동안 CONFIRMED는 한 번만 나옴. HELP는 확정 후 5초 동안 다시 확정되지 않음.
+- 선택 만료 3초는 **마지막 유효 포인팅 시점부터** 셈. 선택한 기기를 계속 가리키는 동안(안정화 기준을 넘고 방향 변화 15° 이내인 POINTING 프레임)은 선택이 유지되고, 손을 거둔 뒤 3초 안에 엄지 제스처가 없으면 `GESTURE_TIMEOUT`으로 취소됨.
 
 취소 사유(`server/intent/cancel_reasons.py`):
 
@@ -62,7 +64,7 @@ if result is not None:
 | --- | --- |
 | `TARGET_NOT_FOUND` | 가리킨 방향에 기기가 없음, 또는 선택 없이 엄지 제스처 |
 | `AMBIGUOUS_TARGET` | 가리킨 방향에 기기 영역이 둘 이상 겹침 |
-| `GESTURE_TIMEOUT` | 선택 후 3초 안에 엄지 제스처가 없음 |
+| `GESTURE_TIMEOUT` | 선택한 기기를 마지막으로 가리킨 뒤 3초 안에 엄지 제스처가 없음 |
 | `DIRECTION_CHANGED` | 선택 중 포인팅 방향이 15°를 넘게 바뀜 |
 | `INVALID_GESTURE` | 꺼진 매핑의 제스처로 확정하려 함 |
 
