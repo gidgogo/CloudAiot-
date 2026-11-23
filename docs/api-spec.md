@@ -275,6 +275,6 @@ HELP 제스처는 의도 판단 모듈이 `HelpService.create_from_gesture(corre
 | `GET` | `/api/v1/gesture-mappings` | 로그인 | 매핑 목록 |
 | `PATCH` | `/api/v1/gesture-mappings/{gesture}` | ADMIN | `{ "action"?: "ON"\|"OFF"\|"HELP", "enabled"?: bool }` |
 
-기본값: `THUMB_UP→ON`, `THUMB_DOWN→OFF`, `HELP→HELP`. `POINTING`은 기기 선택용이라 매핑 대상이 아니다.
+기본값: `OPEN_PALM→ON`, `FIST→OFF`, `V_SIGN→HELP`. `POINTING`은 기기 선택용이라 매핑 대상이 아니다.
 사용 중인 매핑끼리 같은 명령을 쓰면 `MAPPING_CONFLICT`.
 의도 판단 모듈은 `GestureMappingService.action_for(gesture)`로 현재 명령을 얻는다(꺼져 있으면 `None`).
