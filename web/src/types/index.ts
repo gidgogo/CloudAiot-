@@ -7,7 +7,7 @@ export type ConnectionStatus = "ONLINE" | "OFFLINE";
 export type HelpStatus = "CREATED" | "CONFIRMED" | "COMPLETED";
 export type HelpSource = "GESTURE" | "WEB";
 export type CommandStatus = "PENDING" | "COMPLETED" | "FAILED";
-export type MappableGesture = "THUMB_UP" | "THUMB_DOWN" | "HELP";
+export type MappableGesture = "OPEN_PALM" | "FIST" | "V_SIGN";
 export type GestureAction = "ON" | "OFF" | "HELP";
 
 export interface User {

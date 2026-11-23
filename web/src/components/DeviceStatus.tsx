@@ -26,8 +26,8 @@ import { DeviceGlyph, Icon } from "./DeviceCard";
 
 // ---- HandSkeleton ----
 
-/** 화면에 그릴 손 모양. 서버 제스처(POINTING, THUMB_UP, THUMB_DOWN, HELP)에 "아무것도 아님"을 더했다. */
-export type HandPose = "IDLE" | "POINTING" | "THUMB_UP" | "THUMB_DOWN" | "HELP";
+/** 화면에 그릴 손 모양. 서버 제스처(POINTING, OPEN_PALM, FIST, V_SIGN)에 "아무것도 아님"을 더했다. */
+export type HandPose = "IDLE" | "POINTING" | "OPEN_PALM" | "FIST" | "V_SIGN";
 type Finger = "thumb" | "index" | "middle" | "ring" | "pinky";
 
 const FINGERS: { key: Finger; label: string }[] = [
@@ -42,17 +42,17 @@ const FINGERS: { key: Finger; label: string }[] = [
 export const POSE_FINGERS: Record<HandPose, Record<Finger, boolean>> = {
   IDLE: { thumb: false, index: false, middle: false, ring: false, pinky: false },
   POINTING: { thumb: false, index: true, middle: false, ring: false, pinky: false },
-  THUMB_UP: { thumb: true, index: false, middle: false, ring: false, pinky: false },
-  THUMB_DOWN: { thumb: true, index: false, middle: false, ring: false, pinky: false },
-  HELP: { thumb: true, index: true, middle: true, ring: true, pinky: true },
+  OPEN_PALM: { thumb: true, index: true, middle: true, ring: true, pinky: true },
+  FIST: { thumb: false, index: false, middle: false, ring: false, pinky: false },
+  V_SIGN: { thumb: false, index: true, middle: true, ring: false, pinky: false },
 };
 
 export const POSE_LABEL: Record<HandPose, string> = {
   IDLE: "인식 대기",
   POINTING: "가리키기",
-  THUMB_UP: "엄지 올림",
-  THUMB_DOWN: "엄지 내림",
-  HELP: "손바닥 펴기",
+  OPEN_PALM: "손바닥 펴기",
+  FIST: "주먹 쥐기",
+  V_SIGN: "V자",
 };
 
 // 손가락 뿌리(MCP) 위치, 펴졌을 때 방향(도, -90이 위쪽), 마디 길이
@@ -92,8 +92,8 @@ export function fingerPoints(finger: Finger, extended: boolean): [number, number
 /** HouSign 편집기처럼 손 뼈대를 그린다. 펴진 손가락은 파랑, 접힌 손가락은 회색. */
 export function HandSkeleton({ pose, active = true, size = 240 }: { pose: HandPose; active?: boolean; size?: number }) {
   const fingers = POSE_FINGERS[pose];
-  // 엄지 내림은 엄지 올림을 뒤집어 그린다. 가리키기는 오른쪽을 향하게 살짝 기울인다.
-  const transform = pose === "THUMB_DOWN" ? "rotate(180 100 150)" : pose === "POINTING" ? "rotate(22 100 160)" : undefined;
+  // 가리키기는 오른쪽을 향하게 살짝 기울인다.
+  const transform = pose === "POINTING" ? "rotate(22 100 160)" : undefined;
   return (
     <svg
       className={`hand-skeleton${active ? "" : " inactive"}`}
@@ -256,7 +256,7 @@ interface PanelProps {
  * 대시보드의 '실시간 제어' 패널.
  * 왼쪽에 손 관절 그림, 오른쪽에 인식된 동작 · 선택된 기기 · 연결된 명령 · 결과를 한 줄씩 두고,
  * 아래에 카메라 → 기기 선택 → 제스처 확정 → 명령 전송 → 완료 5단계를 연결선으로 잇는다.
- * 시연에서 "엄지 올림 → 조명 선택 → 켜기 명령 → 완료" 흐름을 한 영역에서 따라갈 수 있게 한다.
+ * 시연에서 "조명 가리키기 → 손바닥 펴기 → 켜기 명령 → 완료" 흐름을 한 영역에서 따라갈 수 있게 한다.
  */
 export function LiveControlPanel({ live, devices, mappings, roomName, action: headerAction }: PanelProps) {
   const { edgeStatus } = useRealtimeStatus();
@@ -324,7 +324,7 @@ export function LiveControlPanel({ live, devices, mappings, roomName, action: he
                   <span className="muted">→ {action === "HELP" ? ACTION_TARGET.HELP : device?.name ?? ACTION_TARGET[action]}</span>
                 </>
               ) : (
-                <span className="muted">{step === "selected" ? "엄지를 올리거나 내려 켜고 끄세요" : "없음"}</span>
+                <span className="muted">{step === "selected" ? "손바닥을 펴거나 주먹을 쥐어 켜고 끄세요" : "없음"}</span>
               )}
             </dd>
           </div>
@@ -361,7 +361,7 @@ export function LiveControlPanel({ live, devices, mappings, roomName, action: he
 
 // ---- GestureBindingList ----
 
-const GESTURE_ORDER = ["THUMB_UP", "THUMB_DOWN", "HELP"];
+const GESTURE_ORDER = ["OPEN_PALM", "FIST", "V_SIGN"];
 
 interface BindingProps {
   mappings: GestureMapping[];
