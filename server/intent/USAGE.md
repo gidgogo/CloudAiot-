@@ -16,7 +16,7 @@ engine = IntentEngine(
     regions=[DeviceRegion("fan-01", -15.0, 15.0), DeviceRegion("light-01", 75.0, 105.0)],
     frame_width=640,    # 선택. 기본 640x480
     frame_height=480,
-    action_for=mapping_service.action_for,  # 선택. 기본: 엄지 위=ON, 엄지 아래=OFF, HELP=HELP
+    action_for=mapping_service.action_for,  # 선택. 기본: OPEN_PALM=ON, FIST=OFF, V_SIGN=HELP
 )
 ```
 
@@ -47,24 +47,24 @@ if result is not None:
 | status | 의미 | 파이프라인이 할 일 |
 | --- | --- | --- |
 | `PENDING` | POINTING으로 기기가 선택됨. `target_device_id`에 기기 ID, `action`은 `None` | 웹 이벤트 `device.selected`(스펙 9)의 근거. MQTT 명령은 만들지 않음 |
-| `CONFIRMED` + `ON`/`OFF` | 엄지 제스처로 확정. `target_device_id`, `confirmed_at_ms` 있음 | `command_from_intent`로 MQTT 명령 생성(스펙 11). `gesture.confirmed` 이벤트의 근거 |
+| `CONFIRMED` + `ON`/`OFF` | 켜기·끄기 제스처(OPEN_PALM·FIST)로 확정. `target_device_id`, `confirmed_at_ms` 있음 | `command_from_intent`로 MQTT 명령 생성(스펙 11). `gesture.confirmed` 이벤트의 근거 |
 | `CONFIRMED` + `HELP` | HELP 확정. `target_device_id`는 `None` | MQTT로 보내지 않음. 도움 요청 1건 생성(스펙 10) |
 | `CANCELLED` | 취소됨. `cancel_reason`에 사유, `action`은 `None` | 명령을 만들지 않음. 필요하면 사용자에게 알림 |
 
 주의:
-- `action`은 CONFIRMED에만 들어감(ON/OFF/HELP). `PENDING`, `CANCELLED`는 `action=None`(JSON `null`)임. 선택 없이 엄지를 들어 취소될 때도 `None`임. 그래도 처리할 때는 `status`를 먼저 확인할 것.
+- `action`은 CONFIRMED에만 들어감(ON/OFF/HELP). `PENDING`, `CANCELLED`는 `action=None`(JSON `null`)임. 선택 없이 켜기·끄기 제스처를 해 취소될 때도 `None`임. 그래도 처리할 때는 `status`를 먼저 확인할 것.
   - 통합 담당과 합의한 형태(2026-11-16). `shared`의 `IntentResult.action` 타입과 intent-result 스키마는 통합 담당이 null을 허용하도록 정리할 예정임.
 - 결과의 `correlation_id`는 그 결과를 만든 프레임의 값임. 명령과 도움 요청까지 그대로 이어서 쓰면 추적됨.
 - 같은 제스처가 이어지는 동안 CONFIRMED는 한 번만 나옴. HELP는 확정 후 5초 동안 다시 확정되지 않음.
-- 선택 만료 3초는 **마지막 유효 포인팅 시점부터** 셈. 선택한 기기를 계속 가리키는 동안(안정화 기준을 넘고 방향 변화 15° 이내인 POINTING 프레임)은 선택이 유지되고, 손을 거둔 뒤 3초 안에 엄지 제스처가 없으면 `GESTURE_TIMEOUT`으로 취소됨.
+- 선택 만료 3초는 **마지막 유효 포인팅 시점부터** 셈. 선택한 기기를 계속 가리키는 동안(안정화 기준을 넘고 방향 변화 15° 이내인 POINTING 프레임)은 선택이 유지되고, 손을 거둔 뒤 3초 안에 켜기·끄기 제스처가 없으면 `GESTURE_TIMEOUT`으로 취소됨.
 
 취소 사유(`server/intent/cancel_reasons.py`):
 
 | 사유 | 언제 |
 | --- | --- |
-| `TARGET_NOT_FOUND` | 가리킨 방향에 기기가 없음, 또는 선택 없이 엄지 제스처 |
+| `TARGET_NOT_FOUND` | 가리킨 방향에 기기가 없음, 또는 선택 없이 켜기·끄기 제스처 |
 | `AMBIGUOUS_TARGET` | 가리킨 방향에 기기 영역이 둘 이상 겹침 |
-| `GESTURE_TIMEOUT` | 선택한 기기를 마지막으로 가리킨 뒤 3초 안에 엄지 제스처가 없음 |
+| `GESTURE_TIMEOUT` | 선택한 기기를 마지막으로 가리킨 뒤 3초 안에 켜기·끄기 제스처가 없음 |
 | `DIRECTION_CHANGED` | 선택 중 포인팅 방향이 15°를 넘게 바뀜 |
 | `INVALID_GESTURE` | 꺼진 매핑의 제스처로 확정하려 함 |
 

@@ -9,7 +9,7 @@
     "frame_id": {"type": "string", "minLength": 1},
     "correlation_id": {"type": "string"},
     "handedness": {"enum": ["LEFT", "RIGHT", "UNKNOWN"]},
-    "gesture": {"enum": ["POINTING", "THUMB_UP", "THUMB_DOWN", "HELP", "UNKNOWN"]},
+    "gesture": {"enum": ["POINTING", "OPEN_PALM", "FIST", "V_SIGN", "UNKNOWN"]},
     "pointing_vector": {
       "type": ["object", "null"],
       "additionalProperties": false,

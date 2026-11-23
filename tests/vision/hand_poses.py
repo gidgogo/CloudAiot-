@@ -39,12 +39,8 @@ def open_palm() -> list[Point]:
     return hand((True, True, True, True), STRAIGHT_THUMB)
 
 
-def fist() -> list[Point]:
-    return hand((False, False, False, False))
-
-
-def thumb_up() -> list[Point]:
-    return hand((False, False, False, False), RAISED_THUMB)
+def v_sign() -> list[Point]:
+    return hand((True, True, False, False))
 
 
 def rotate(points: list[Point], angle_deg: float, center: tuple[float, float] = (0.5, 0.6)) -> list[Point]:

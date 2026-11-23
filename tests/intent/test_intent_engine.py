@@ -86,7 +86,7 @@ def selected_engine(engine: IntentEngine) -> IntentEngine:
 
 
 def test_help_is_confirmed_without_target(engine):
-    result = engine.consume(gesture(GestureType.HELP, T0))
+    result = engine.consume(gesture(GestureType.V_SIGN, T0))
     assert result.action is IntentAction.HELP
     assert result.status is IntentStatus.CONFIRMED
     assert result.target_device_id is None
@@ -95,26 +95,26 @@ def test_help_is_confirmed_without_target(engine):
 
 
 def test_holding_help_confirms_only_once(engine):
-    assert engine.consume(gesture(GestureType.HELP, T0)).status is IntentStatus.CONFIRMED
-    assert engine.consume(gesture(GestureType.HELP, T0 + 100)) is None
+    assert engine.consume(gesture(GestureType.V_SIGN, T0)).status is IntentStatus.CONFIRMED
+    assert engine.consume(gesture(GestureType.V_SIGN, T0 + 100)) is None
 
 
 def test_help_needs_a_different_gesture_before_next_request(engine):
-    engine.consume(gesture(GestureType.HELP, T0))
-    assert engine.consume(gesture(GestureType.HELP, T0 + COOLDOWN_MS + 1_000)) is None
+    engine.consume(gesture(GestureType.V_SIGN, T0))
+    assert engine.consume(gesture(GestureType.V_SIGN, T0 + COOLDOWN_MS + 1_000)) is None
 
 
 def test_help_cooldown_blocks_quick_repeat(engine):
-    engine.consume(gesture(GestureType.HELP, T0))
+    engine.consume(gesture(GestureType.V_SIGN, T0))
     assert engine.consume(gesture(GestureType.UNKNOWN, T0 + 100)) is None
-    assert engine.consume(gesture(GestureType.HELP, T0 + 1_000)) is None
-    assert engine.consume(gesture(GestureType.HELP, T0 + COOLDOWN_MS)).status is IntentStatus.CONFIRMED
+    assert engine.consume(gesture(GestureType.V_SIGN, T0 + 1_000)) is None
+    assert engine.consume(gesture(GestureType.V_SIGN, T0 + COOLDOWN_MS)).status is IntentStatus.CONFIRMED
 
 
 def test_help_drops_device_selection(selected_engine):
-    assert selected_engine.consume(gesture(GestureType.HELP, T0 + 500)).status is IntentStatus.CONFIRMED
+    assert selected_engine.consume(gesture(GestureType.V_SIGN, T0 + 500)).status is IntentStatus.CONFIRMED
     assert selected_engine.state.state is IntentState.IDLE
-    result = selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000))
+    result = selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000))
     assert result.cancel_reason == TARGET_NOT_FOUND
 
 
@@ -133,7 +133,7 @@ def test_pointing_at_device_selects_it(engine):
 
 def test_keeping_pointing_at_same_device_returns_none_and_keeps_selection_alive(selected_engine):
     assert selected_engine.consume(point(2.0, T0 + 2_000)) is None
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 4_500)).status is IntentStatus.CONFIRMED
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 4_500)).status is IntentStatus.CONFIRMED
 
 
 def test_small_move_keeps_selection_even_over_neighbouring_region():
@@ -245,7 +245,7 @@ def test_update_regions_is_used_for_next_pointing():
 def test_removing_or_disabling_selected_device_drops_selection(selected_engine, new_regions):
     selected_engine.update_regions(new_regions)
     assert selected_engine.state.state is IntentState.IDLE
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 500)).cancel_reason == TARGET_NOT_FOUND
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 500)).cancel_reason == TARGET_NOT_FOUND
 
 
 def test_updating_regions_keeps_selection_when_device_remains(selected_engine):
@@ -253,14 +253,14 @@ def test_updating_regions_keeps_selection_when_device_remains(selected_engine):
     assert selected_engine.state.target_device_id == "fan-01"
 
 
-# --- 명령 (엄지 위·아래) ------------------------------------------------------
+# --- 명령 (손바닥 펴기·주먹) ---------------------------------------------------
 
 
 @pytest.mark.parametrize(
     "kind, action",
-    [(GestureType.THUMB_UP, IntentAction.ON), (GestureType.THUMB_DOWN, IntentAction.OFF)],
+    [(GestureType.OPEN_PALM, IntentAction.ON), (GestureType.FIST, IntentAction.OFF)],
 )
-def test_thumb_after_selection_confirms_command(selected_engine, kind, action):
+def test_gesture_after_selection_confirms_command(selected_engine, kind, action):
     result = selected_engine.consume(gesture(kind, T0 + 1_000))
     assert result.status is IntentStatus.CONFIRMED
     assert result.action is action
@@ -270,34 +270,34 @@ def test_thumb_after_selection_confirms_command(selected_engine, kind, action):
 
 
 def test_confirm_returns_state_to_idle(selected_engine):
-    selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000))
+    selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000))
     assert selected_engine.state.state is IntentState.IDLE
 
 
-def test_holding_thumb_up_confirms_only_once(selected_engine):
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000)).status is IntentStatus.CONFIRMED
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_100)) is None
+def test_holding_open_palm_confirms_only_once(selected_engine):
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000)).status is IntentStatus.CONFIRMED
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_100)) is None
 
 
 def test_new_command_needs_a_new_selection(selected_engine):
-    selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000))
+    selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000))
     selected_engine.consume(gesture(GestureType.UNKNOWN, T0 + 1_100))
-    result = selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_200))
+    result = selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_200))
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == TARGET_NOT_FOUND
 
 
-def test_thumb_without_selection_is_cancelled(engine):
-    result = engine.consume(gesture(GestureType.THUMB_UP, T0))
+def test_command_without_selection_is_cancelled(engine):
+    result = engine.consume(gesture(GestureType.OPEN_PALM, T0))
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == TARGET_NOT_FOUND
     assert result.target_device_id is None
     assert result.action is None
 
 
-def test_holding_thumb_without_selection_cancels_once(engine):
-    assert engine.consume(gesture(GestureType.THUMB_UP, T0)).status is IntentStatus.CANCELLED
-    assert engine.consume(gesture(GestureType.THUMB_UP, T0 + 100)) is None
+def test_holding_command_without_selection_cancels_once(engine):
+    assert engine.consume(gesture(GestureType.OPEN_PALM, T0)).status is IntentStatus.CANCELLED
+    assert engine.consume(gesture(GestureType.OPEN_PALM, T0 + 100)) is None
 
 
 # --- 제스처 매핑 (D4: 매핑이 꺼진 제스처는 INVALID_GESTURE) ----------------------
@@ -308,29 +308,29 @@ def without(disabled: GestureType):
 
 
 def test_disabled_command_gesture_cancels_with_invalid_gesture():
-    engine = IntentEngine(REGIONS, action_for=without(GestureType.THUMB_UP))
+    engine = IntentEngine(REGIONS, action_for=without(GestureType.OPEN_PALM))
     engine.consume(point(0.0, T0))
-    result = engine.consume(gesture(GestureType.THUMB_UP, T0 + 500))
+    result = engine.consume(gesture(GestureType.OPEN_PALM, T0 + 500))
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == INVALID_GESTURE
     assert result.target_device_id == "fan-01"
     assert engine.state.state is IntentState.IDLE
-    assert engine.consume(gesture(GestureType.THUMB_UP, T0 + 600)) is None
+    assert engine.consume(gesture(GestureType.OPEN_PALM, T0 + 600)) is None
 
 
 def test_disabled_help_gesture_cancels_with_invalid_gesture():
-    engine = IntentEngine(REGIONS, action_for=without(GestureType.HELP))
-    result = engine.consume(gesture(GestureType.HELP, T0))
+    engine = IntentEngine(REGIONS, action_for=without(GestureType.V_SIGN))
+    result = engine.consume(gesture(GestureType.V_SIGN, T0))
     assert result.cancel_reason == INVALID_GESTURE
     assert result.target_device_id is None
 
 
 def test_remapped_gestures_are_used():
-    swapped = {GestureType.THUMB_UP: IntentAction.OFF, GestureType.THUMB_DOWN: IntentAction.HELP}
+    swapped = {GestureType.OPEN_PALM: IntentAction.OFF, GestureType.FIST: IntentAction.HELP}
     engine = IntentEngine(REGIONS, action_for=swapped.get)
     engine.consume(point(0.0, T0))
-    assert engine.consume(gesture(GestureType.THUMB_UP, T0 + 500)).action is IntentAction.OFF
-    help_result = engine.consume(gesture(GestureType.THUMB_DOWN, T0 + 600))
+    assert engine.consume(gesture(GestureType.OPEN_PALM, T0 + 500)).action is IntentAction.OFF
+    help_result = engine.consume(gesture(GestureType.FIST, T0 + 600))
     assert help_result.action is IntentAction.HELP
     assert help_result.status is IntentStatus.CONFIRMED
 
@@ -339,7 +339,7 @@ def test_remapped_gestures_are_used():
 
 
 def test_selection_timeout_is_cancelled_with_gesture_timeout(selected_engine):
-    result = selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + TIMEOUT_MS + 1))
+    result = selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + TIMEOUT_MS + 1))
     assert result.status is IntentStatus.CANCELLED
     assert result.cancel_reason == GESTURE_TIMEOUT
     assert result.target_device_id == "fan-01"
@@ -352,9 +352,9 @@ def test_timeout_is_reported_once_on_any_frame(selected_engine):
 
 
 def test_frame_from_before_selection_is_ignored(selected_engine):
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 - 1)) is None
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 - 1)) is None
     assert selected_engine.state.target_device_id == "fan-01"
-    assert selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 100)).status is IntentStatus.CONFIRMED
+    assert selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 100)).status is IntentStatus.CONFIRMED
 
 
 # --- 안정화 기준 (스펙 15장: 안정화 미충족 제스처는 확정하지 않음) ------------
@@ -365,13 +365,13 @@ def test_frame_from_before_selection_is_ignored(selected_engine):
     [(PARAMS.min_stable_frames - 1, PARAMS.min_hold_ms), (PARAMS.min_stable_frames, PARAMS.min_hold_ms - 1)],
 )
 def test_unstable_gesture_is_not_confirmed(selected_engine, stable_frames, hold_time_ms):
-    unstable = gesture(GestureType.THUMB_UP, T0 + 1_000, stable_frames=stable_frames, hold_time_ms=hold_time_ms)
+    unstable = gesture(GestureType.OPEN_PALM, T0 + 1_000, stable_frames=stable_frames, hold_time_ms=hold_time_ms)
     assert selected_engine.consume(unstable) is None
     assert selected_engine.state.target_device_id == "fan-01"
 
 
 def test_unstable_help_is_not_confirmed(engine):
-    assert engine.consume(gesture(GestureType.HELP, T0, stable_frames=PARAMS.min_stable_frames - 1)) is None
+    assert engine.consume(gesture(GestureType.V_SIGN, T0, stable_frames=PARAMS.min_stable_frames - 1)) is None
 
 
 def test_unstable_pointing_does_not_select(engine):
@@ -387,7 +387,7 @@ def test_unknown_gesture_returns_none_and_keeps_selection(selected_engine):
 # --- 받은 메시지 검사 (스펙 3.3, 14.6, 14.7) ------------------------------------
 
 
-def broken(field: str, value, kind: GestureType = GestureType.THUMB_UP) -> GestureResult:
+def broken(field: str, value, kind: GestureType = GestureType.OPEN_PALM) -> GestureResult:
     result = gesture(kind, T0 + 500, correlation_id="corr-bad")
     setattr(result, field, value)
     return result
@@ -431,8 +431,8 @@ def test_pointing_vector_outside_0_to_1_is_rejected(engine, caplog):
 
 
 def test_gesture_given_as_plain_string_is_accepted(selected_engine):
-    result = gesture(GestureType.THUMB_UP, T0 + 500)
-    result.gesture = "THUMB_UP"
+    result = gesture(GestureType.OPEN_PALM, T0 + 500)
+    result.gesture = "OPEN_PALM"
     confirmed = selected_engine.consume(result)
     assert confirmed.status is IntentStatus.CONFIRMED
     assert confirmed.action is IntentAction.ON
@@ -444,23 +444,23 @@ def test_gesture_given_as_plain_string_is_accepted(selected_engine):
 def test_correlation_id_is_passed_through():
     engine = IntentEngine(REGIONS)
     results = [
-        engine.consume(gesture(GestureType.HELP, 10_000, correlation_id="c-help")),
+        engine.consume(gesture(GestureType.V_SIGN, 10_000, correlation_id="c-help")),
         engine.consume(point(0.0, 10_100, correlation_id="c-point")),
-        engine.consume(gesture(GestureType.THUMB_UP, 10_200, correlation_id="c-thumb")),
-        engine.consume(gesture(GestureType.THUMB_DOWN, 10_300, correlation_id="c-cancel")),
+        engine.consume(gesture(GestureType.OPEN_PALM, 10_200, correlation_id="c-command")),
+        engine.consume(gesture(GestureType.FIST, 10_300, correlation_id="c-cancel")),
     ]
-    assert [result.correlation_id for result in results] == ["c-help", "c-point", "c-thumb", "c-cancel"]
+    assert [result.correlation_id for result in results] == ["c-help", "c-point", "c-command", "c-cancel"]
 
 
 def all_kinds_of_results() -> list:
     engine = IntentEngine(REGIONS)
     return [
         engine.consume(point(0.0, T0)),  # PENDING
-        engine.consume(gesture(GestureType.THUMB_UP, T0 + 100)),  # CONFIRMED
-        engine.consume(gesture(GestureType.THUMB_DOWN, T0 + 200)),  # CANCELLED: TARGET_NOT_FOUND
+        engine.consume(gesture(GestureType.OPEN_PALM, T0 + 100)),  # CONFIRMED
+        engine.consume(gesture(GestureType.FIST, T0 + 200)),  # CANCELLED: TARGET_NOT_FOUND
         engine.consume(point(0.0, T0 + 300)),  # PENDING
         engine.consume(point(90.0, T0 + 400)),  # CANCELLED: DIRECTION_CHANGED
-        engine.consume(gesture(GestureType.HELP, T0 + 500)),  # CONFIRMED: HELP
+        engine.consume(gesture(GestureType.V_SIGN, T0 + 500)),  # CONFIRMED: HELP
     ]
 
 
@@ -490,7 +490,7 @@ def test_each_result_gets_its_own_intent_id():
 
 
 def test_confirmed_result_serializes_to_spec_values(selected_engine):
-    data = selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000)).as_dict()
+    data = selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000)).as_dict()
     assert data["action"] == "ON"
     assert data["status"] == "CONFIRMED"
     assert data["target_device_id"] == "fan-01"
@@ -506,19 +506,19 @@ def fixed_clock(monkeypatch):
 
 
 def test_confirmed_command_records_latency(selected_engine, fixed_clock):
-    selected_engine.consume(gesture(GestureType.THUMB_UP, T0 + 1_000, correlation_id="c-cmd"))
+    selected_engine.consume(gesture(GestureType.OPEN_PALM, T0 + 1_000, correlation_id="c-cmd"))
     assert selected_engine.latency_ms("c-cmd") == 250
 
 
 def test_confirmed_help_records_latency(engine, fixed_clock):
-    engine.consume(gesture(GestureType.HELP, T0 + 1_100, correlation_id="c-help"))
+    engine.consume(gesture(GestureType.V_SIGN, T0 + 1_100, correlation_id="c-help"))
     assert engine.latency_ms("c-help") == 150
 
 
 def test_only_confirmed_results_record_latency(engine, fixed_clock):
     assert engine.consume(point(0.0, T0, correlation_id="c-pending")).status is IntentStatus.PENDING
-    assert engine.consume(gesture(GestureType.THUMB_DOWN, T0 + 100, correlation_id="c-confirm")).status is IntentStatus.CONFIRMED
-    assert engine.consume(gesture(GestureType.THUMB_UP, T0 + 200, correlation_id="c-cancel")).status is IntentStatus.CANCELLED
+    assert engine.consume(gesture(GestureType.FIST, T0 + 100, correlation_id="c-confirm")).status is IntentStatus.CONFIRMED
+    assert engine.consume(gesture(GestureType.OPEN_PALM, T0 + 200, correlation_id="c-cancel")).status is IntentStatus.CANCELLED
     assert engine.latency_ms("c-pending") is None
     assert engine.latency_ms("c-confirm") == 1_150
     assert engine.latency_ms("c-cancel") is None
@@ -529,7 +529,7 @@ def test_latency_is_none_for_unknown_correlation_id(engine):
 
 
 def test_empty_correlation_id_is_not_tracked(engine, fixed_clock):
-    engine.consume(gesture(GestureType.HELP, T0, correlation_id=""))
+    engine.consume(gesture(GestureType.V_SIGN, T0, correlation_id=""))
     assert engine.latency.timestamps == {}
 
 

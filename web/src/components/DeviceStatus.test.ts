@@ -26,10 +26,10 @@ describe("stepStates", () => {
 describe("손 모양", () => {
   it("확정된 명령을 매핑에서 그 명령을 내는 제스처로 되돌린다", () => {
     const mappings = [
-      { gesture: "THUMB_UP", action: "ON", enabled: true, updated_at_ms: 0 },
-      { gesture: "THUMB_DOWN", action: "OFF", enabled: false, updated_at_ms: 0 },
+      { gesture: "OPEN_PALM", action: "ON", enabled: true, updated_at_ms: 0 },
+      { gesture: "FIST", action: "OFF", enabled: false, updated_at_ms: 0 },
     ] as const;
-    expect(poseForAction("ON", [...mappings])).toBe("THUMB_UP");
+    expect(poseForAction("ON", [...mappings])).toBe("OPEN_PALM");
     expect(poseForAction("OFF", [...mappings])).toBe("IDLE");
     expect(poseForAction(null, [...mappings])).toBe("IDLE");
   });

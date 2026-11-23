@@ -57,7 +57,7 @@ CloudAiot-/
 │   │   ├── hand_detector.py                   # MediaPipe Hands 실행
 │   │   ├── landmark_processor.py              # 21개 손 랜드마크 전처리
 │   │   ├── pointing_detector.py               # 검지 포인팅 방향 계산
-│   │   ├── gesture_rules.py                   # 엄지·도움 요청 제스처 판정
+│   │   ├── gesture_rules.py                   # 손바닥·주먹·V자 제스처 판정
 │   │   └── stability_checker.py               # 연속 프레임·유지시간 검사
 │   │
 │   ├── intent/                                # [AI 담당 B] 의도 판단
@@ -381,7 +381,7 @@ main                              # 전체 기능이 정상 동작하는 안정 
 - AI 담당 A
     - MediaPipe Hands 연동
     - 21개 손 랜드마크 추출
-    - 검지 포인팅, 엄지 올림·내림, 도움 요청 제스처 판정
+    - 검지 포인팅, 손바닥 펴기·주먹·V자 제스처 판정
     - 연속 프레임 및 유지시간 검사
 - AI 담당 B
     - 포인팅 방향과 기기 영역 매칭

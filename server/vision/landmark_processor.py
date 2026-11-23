@@ -96,7 +96,3 @@ def finger_extended(landmarks: Landmarks, finger: tuple[int, int, int], straight
     mcp, pip, tip = (landmarks[index] for index in finger)
     wrist = landmarks[WRIST]
     return joint_angle_deg(mcp, pip, tip) >= straight_deg and distance(wrist, tip) > distance(wrist, pip)
-
-
-def thumb_straight(landmarks: Landmarks, straight_deg: float) -> bool:
-    return joint_angle_deg(landmarks[THUMB_MCP], landmarks[THUMB_IP], landmarks[THUMB_TIP]) >= straight_deg

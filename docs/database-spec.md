@@ -105,12 +105,12 @@ MQTT 명령 1건당 1행. NFR-01 지연 측정의 기준 데이터다.
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `gesture` | VARCHAR(16) PK | `THUMB_UP` / `THUMB_DOWN` / `HELP` |
+| `gesture` | VARCHAR(16) PK | `OPEN_PALM` / `FIST` / `V_SIGN` |
 | `action` | VARCHAR(8) | `ON` / `OFF` / `HELP` |
 | `enabled` | BOOLEAN | 꺼져 있으면 해당 제스처로 명령을 만들지 않음 |
 | `updated_at_ms` | BIGINT | |
 
-서버 시작 시 없으면 기본값(엄지 올림=ON, 엄지 내림=OFF, HELP=도움 요청)을 넣는다.
+서버 시작 시 없으면 기본값(손바닥 펴기=ON, 주먹=OFF, V자=도움 요청)을 넣는다. 예전 제스처(`THUMB_UP` 등)로 저장된 행은 이때 지운다.
 
 ## 보존 기간 (SAD 5.2)
 

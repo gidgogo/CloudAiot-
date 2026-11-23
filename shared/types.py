@@ -18,9 +18,9 @@ class Action(StrEnum):
     CALL_CAREGIVER = "call_caregiver"
 class GestureType(StrEnum):
     POINTING = "POINTING"
-    THUMB_UP = "THUMB_UP"
-    THUMB_DOWN = "THUMB_DOWN"
-    HELP = "HELP"
+    OPEN_PALM = "OPEN_PALM"
+    FIST = "FIST"
+    V_SIGN = "V_SIGN"
     UNKNOWN = "UNKNOWN"
 class Handedness(StrEnum):
     LEFT = "LEFT"

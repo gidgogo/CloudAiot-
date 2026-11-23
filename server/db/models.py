@@ -123,7 +123,7 @@ class GestureMapping(Base):
 
     __tablename__ = "gesture_mappings"
 
-    gesture: Mapped[str] = mapped_column(String(16), primary_key=True)  # THUMB_UP | THUMB_DOWN | HELP
+    gesture: Mapped[str] = mapped_column(String(16), primary_key=True)  # OPEN_PALM | FIST | V_SIGN
     action: Mapped[str] = mapped_column(String(8))  # ON | OFF | HELP
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at_ms: Mapped[int] = mapped_column(BigInteger)

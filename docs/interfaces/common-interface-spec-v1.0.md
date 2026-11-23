@@ -304,7 +304,7 @@ AI 담당 A는 다음 형식으로 AI 담당 B의 의도 판단 모듈에 결과
   "frame_id": "e17d8451-59dd-4c45-92e0-3fdc018e72ab",
   "correlation_id": "e17d8451-59dd-4c45-92e0-3fdc018e72ab",
   "handedness": "RIGHT",
-  "gesture": "THUMB_UP",
+  "gesture": "OPEN_PALM",
   "pointing_vector": {
     "start_x": 0.42,
     "start_y": 0.61,
@@ -319,13 +319,13 @@ AI 담당 A는 다음 형식으로 AI 담당 B의 의도 판단 모듈에 결과
 
 제스처 값은 다음으로 제한한다.
 
-- `POINTING`
-- `THUMB_UP`
-- `THUMB_DOWN`
-- `HELP`
+- `POINTING`: 검지만 펴서 기기를 가리킴
+- `OPEN_PALM`: 손바닥 펴기 (기본 매핑: `ON`)
+- `FIST`: 주먹 쥐기 (기본 매핑: `OFF`)
+- `V_SIGN`: 검지·중지로 V자 (기본 매핑: `HELP`)
 - `UNKNOWN`
 
-`HELP`는 v1 필수 규격으로 포함한다. 실제 도움 요청 손 모양과 판정 조건은 제스처 규칙 설정에서 관리한다.
+도움 요청(`HELP` 명령)은 v1 필수 규격으로 포함한다. 어떤 손 모양이 어떤 명령을 내는지는 제스처·명령 매핑에서 관리한다.
 
 ## 6.2 최종 의도 결과
 

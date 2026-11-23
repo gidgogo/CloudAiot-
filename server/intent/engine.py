@@ -20,9 +20,9 @@ from shared.types import GestureResult, GestureType, IntentAction, IntentResult,
 log = logging.getLogger(__name__)
 
 DEFAULT_GESTURE_ACTIONS: dict[GestureType, IntentAction] = {
-    GestureType.THUMB_UP: IntentAction.ON,
-    GestureType.THUMB_DOWN: IntentAction.OFF,
-    GestureType.HELP: IntentAction.HELP,
+    GestureType.OPEN_PALM: IntentAction.ON,
+    GestureType.FIST: IntentAction.OFF,
+    GestureType.V_SIGN: IntentAction.HELP,
 }
 MAPPABLE_GESTURES = frozenset(DEFAULT_GESTURE_ACTIONS)
 
@@ -187,7 +187,7 @@ class IntentEngine:
         self._selection_correlation_id = result.correlation_id
         return IntentResult(correlation_id=result.correlation_id, target_device_id=match.device_id)
 
-    # --- thumb and HELP: act through the gesture mapping ------------------------
+    # --- ON/OFF/HELP gestures: act through the gesture mapping ------------------------
 
     def _mapped(self, result: GestureResult) -> IntentResult | None:
         """Act once per run on a mapped gesture; a disabled mapping cancels with INVALID_GESTURE."""
@@ -215,7 +215,7 @@ class IntentEngine:
 
     def _help(self, result: GestureResult) -> IntentResult:
         self._last_help_at_ms = result.detected_at_ms
-        # Asking for help drops any device selection so a following thumb cannot operate it.
+        # Asking for help drops any device selection so a following ON/OFF gesture cannot operate it.
         self.state.clear()
         return self._confirmed(result, IntentAction.HELP)
 
@@ -287,7 +287,7 @@ def _checked(result: GestureResult) -> GestureResult | None:
         )
         return None
     if not isinstance(result.gesture, GestureType):
-        # A plain spec string such as "THUMB_UP" is accepted and converted for the identity checks.
+        # A plain spec string such as "OPEN_PALM" is accepted and converted for the identity checks.
         result = replace(result, gesture=GestureType(result.gesture))
     return result
 
